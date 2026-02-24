@@ -14,7 +14,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "deploy:create-user": "supabase functions deploy create-user --project-ref ciktllfgjablxwkheutw",
+    "deploy:create-user": "supabase functions deploy create-user --project-ref ciktllfgjablxwkheutw --no-verify-jwt",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonResponse(body: object, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -13,10 +20,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Missing authorization header" }, 401);
     }
 
     const supabaseUser = createClient(
@@ -27,10 +31,7 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
     const supabaseAdmin = createClient(
@@ -46,26 +47,17 @@ Deno.serve(async (req) => {
       .single();
 
     if (profile?.role !== "admin") {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: admin role required" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Forbidden: admin role required" }, 403);
     }
 
     const { email, password, full_name, role } = await req.json();
     if (!email || !password || !full_name || !role) {
-      return new Response(
-        JSON.stringify({ error: "email, password, full_name, and role are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "email, password, full_name, and role are required" }, 400);
     }
 
     const validRoles = ["employee", "manager", "accountant", "admin"];
     if (!validRoles.includes(role)) {
-      return new Response(
-        JSON.stringify({ error: "role must be employee, manager, accountant, or admin" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "role must be employee, manager, accountant, or admin" }, 400);
     }
 
     const { data: maxRows } = await supabaseAdmin
@@ -88,10 +80,7 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      return new Response(
-        JSON.stringify({ error: createError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: createError.message }, 400);
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -108,21 +97,15 @@ Deno.serve(async (req) => {
       console.error("Profile update error:", updateError);
     }
 
-    return new Response(
-      JSON.stringify({
-        user_id: newUser.user.id,
-        employee_id: nextEmployeeId,
-        email: newUser.user.email,
-        full_name,
-        role,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      user_id: newUser.user.id,
+      employee_id: nextEmployeeId,
+      email: newUser.user.email,
+      full_name,
+      role,
+    });
   } catch (err) {
     console.error(err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: String(err?.message ?? err ?? "Internal server error") }, 500);
   }
 });

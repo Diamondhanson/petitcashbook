@@ -21,9 +21,11 @@ supabase login
 # Link to your project (project ref: ciktllfgjablxwkheutw)
 supabase link --project-ref ciktllfgjablxwkheutw
 
-# Deploy the create-user function
-supabase functions deploy create-user
+# Deploy the create-user function (verify_jwt=false to avoid "Invalid JWT" with ES256 tokens)
+supabase functions deploy create-user --no-verify-jwt
 ```
+
+**Why `--no-verify-jwt`?** Supabase's gateway can reject valid JWTs (e.g. with ES256 signing). Our function still validates the user via `getUser()` inside the function, so it remains secure.
 
 The service role key is automatically available to Edge Functions in your project.
 
