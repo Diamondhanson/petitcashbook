@@ -3,8 +3,12 @@ import { supabase } from "../utils/supabaseClient";
 
 /**
  * Login form - no sign-up. Users are created by admin.
+ * Admin: email + password only.
+ * Employee: User ID + email + password, verifies employee_id matches after auth.
  */
 function Login({ onLoginSuccess }) {
+  const [mode, setMode] = useState("employee"); // "admin" | "employee"
+  const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -16,13 +20,39 @@ function Login({ onLoginSuccess }) {
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: { user: authUser }, error: authError } =
+      await supabase.auth.signInWithPassword({ email, password });
 
-    setLoading(false);
-    if (error) {
-      setError(error.message);
+    if (authError) {
+      setLoading(false);
+      setError(authError.message);
       return;
     }
+
+    if (mode === "employee") {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("employee_id")
+        .eq("id", authUser.id)
+        .single();
+
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError("Could not verify user. Please try again.");
+        return;
+      }
+
+      const enteredId = parseInt(userId.trim(), 10);
+      if (profile.employee_id == null || profile.employee_id !== enteredId) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError("User ID does not match");
+        return;
+      }
+    }
+
+    setLoading(false);
     onLoginSuccess?.();
   };
 
@@ -37,6 +67,31 @@ function Login({ onLoginSuccess }) {
             Sign in with your credentials
           </p>
 
+          <div className="mt-6 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <button
+              type="button"
+              onClick={() => setMode("admin")}
+              className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                mode === "admin"
+                  ? "bg-white text-brand-dark shadow-sm"
+                  : "text-slate-600 hover:text-brand-dark"
+              }`}
+            >
+              Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("employee")}
+              className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                mode === "employee"
+                  ? "bg-white text-brand-dark shadow-sm"
+                  : "text-slate-600 hover:text-brand-dark"
+              }`}
+            >
+              Employee
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="mt-8 space-y-6">
             {error && (
               <div
@@ -44,6 +99,29 @@ function Login({ onLoginSuccess }) {
                 role="alert"
               >
                 {error}
+              </div>
+            )}
+
+            {mode === "employee" && (
+              <div>
+                <label
+                  htmlFor="userId"
+                  className="block text-sm font-medium text-brand-dark"
+                >
+                  User ID
+                </label>
+                <input
+                  id="userId"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  required={mode === "employee"}
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  className="mt-2 block w-full rounded-lg border border-slate-200 px-4 py-3 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                  placeholder="12345"
+                  disabled={loading}
+                />
               </div>
             )}
 

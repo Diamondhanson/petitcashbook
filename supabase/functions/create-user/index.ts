@@ -50,7 +50,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Forbidden: admin role required" }, 403);
     }
 
-    const { email, password, full_name, role } = await req.json();
+    const body = await req.json();
+    const { email, password, full_name, role, employee_id: clientEmployeeId } = body;
     if (!email || !password || !full_name || !role) {
       return jsonResponse({ error: "email, password, full_name, and role are required" }, 400);
     }
@@ -60,17 +61,34 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "role must be employee, manager, accountant, or admin" }, 400);
     }
 
-    const { data: maxRows } = await supabaseAdmin
-      .from("profiles")
-      .select("employee_id")
-      .not("employee_id", "is", null)
-      .order("employee_id", { ascending: false })
-      .limit(1);
+    let nextEmployeeId: number;
 
-    const maxId = maxRows?.[0]?.employee_id;
-    const nextEmployeeId = maxId != null
-      ? Math.min(99999, maxId + 1)
-      : 10000;
+    if (clientEmployeeId != null && typeof clientEmployeeId === "number") {
+      const id = Math.floor(clientEmployeeId);
+      if (id < 10000 || id > 99999) {
+        return jsonResponse({ error: "employee_id must be between 10000 and 99999" }, 400);
+      }
+      const { data: existing } = await supabaseAdmin
+        .from("profiles")
+        .select("employee_id")
+        .eq("employee_id", id)
+        .maybeSingle();
+      if (existing) {
+        return jsonResponse({ error: "Employee ID already in use" }, 400);
+      }
+      nextEmployeeId = id;
+    } else {
+      const { data: maxRows } = await supabaseAdmin
+        .from("profiles")
+        .select("employee_id")
+        .not("employee_id", "is", null)
+        .order("employee_id", { ascending: false })
+        .limit(1);
+      const maxId = maxRows?.[0]?.employee_id;
+      nextEmployeeId = maxId != null
+        ? Math.min(99999, maxId + 1)
+        : 10000;
+    }
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,

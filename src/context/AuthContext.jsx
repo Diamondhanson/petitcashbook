@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "../utils/supabaseClient";
 
 const AuthContext = createContext(null);
@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const handleSession = async (session) => {
+  const handleSession = useCallback(async (session) => {
     if (session?.user) {
       setUser(session.user);
       setLoading(false);
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
       setProfile(null);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -77,12 +77,13 @@ export function AuthProvider({ children }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [handleSession]);
 
   const value = {
     user,
     profile,
     role: profile?.role ?? null,
+    employee_id: profile?.employee_id ?? null,
     loading
   };
 

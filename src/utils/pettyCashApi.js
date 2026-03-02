@@ -33,6 +33,28 @@ async function uploadReceipt(file, requestId = "") {
 }
 
 /**
+ * Upload clarification attachment to receipts bucket.
+ * @param {File} file
+ * @param {string} requestId
+ * @returns {Promise<{url: string, error: Error|null}>}
+ */
+async function uploadClarificationFile(file, requestId) {
+  const ext = file.name.split(".").pop();
+  const fileName = `clarifications/${requestId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
+
+  const { data, error } = await supabase.storage
+    .from(RECEIPTS_BUCKET)
+    .upload(fileName, file, { upsert: false });
+
+  if (error) return { url: null, error };
+
+  const {
+    data: { publicUrl }
+  } = supabase.storage.from(RECEIPTS_BUCKET).getPublicUrl(data.path);
+  return { url: publicUrl, error: null };
+}
+
+/**
  * Create a petty cash request (employee function).
  * @param {Object} params
  * @param {number} params.amount - Request amount in FCFA
@@ -162,6 +184,21 @@ export async function updateRequestStatus(requestId, updates) {
     if (auditError) {
       console.error("Audit trail insert failed:", auditError);
     }
+
+    const { error: timelineError } = await supabase
+      .from("request_timeline")
+      .insert({
+        request_id: requestId,
+        event_type: status,
+        performed_by: user.id,
+        payload:
+          status === "rejected"
+            ? { rejection_reason: rejection_reason.trim(), manager_comment: manager_comment?.trim() }
+            : { manager_comment: manager_comment?.trim() }
+      });
+    if (timelineError) {
+      console.error("Timeline insert failed:", timelineError);
+    }
   }
 
   return { data: request, error: null };
@@ -244,6 +281,7 @@ export async function getProfile() {
 
 /**
  * Fetch pending requests for managers (with requester profile).
+ * Includes both pending and clarification_requested.
  * @returns {Promise<{data: Array, error: Error|null}>}
  */
 export async function getPendingRequests() {
@@ -255,10 +293,190 @@ export async function getPendingRequests() {
       requester:profiles!requester_id(full_name, role)
     `
     )
-    .eq("status", "pending")
+    .in("status", ["pending", "clarification_requested"])
     .order("created_at", { ascending: false });
 
   return { data: data || [], error };
+}
+
+/**
+ * Get single request with requester profile (for manager dialog).
+ * @param {string} requestId
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function getRequestDetails(requestId) {
+  const { data, error } = await supabase
+    .from("requests")
+    .select(
+      `
+      *,
+      requester:profiles!requester_id(full_name, role)
+    `
+    )
+    .eq("id", requestId)
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Get request with timeline (merged chronological events).
+ * First event is derived from request creation.
+ * @param {string} requestId
+ * @returns {Promise<{data: {request: object, timeline: Array}|null, error: Error|null}>}
+ */
+export async function getRequestTimeline(requestId) {
+  const { data: request, error: reqError } = await supabase
+    .from("requests")
+    .select(
+      `
+      *,
+      requester:profiles!requester_id(full_name, role)
+    `
+    )
+    .eq("id", requestId)
+    .single();
+
+  if (reqError || !request) {
+    return { data: null, error: reqError || new Error("Request not found") };
+  }
+
+  const { data: rows, error: tlError } = await supabase
+    .from("request_timeline")
+    .select("id, event_type, performed_by, created_at, payload")
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: true });
+
+  if (tlError) {
+    // Fallback when request_timeline table doesn't exist (migration not applied)
+    console.warn("request_timeline unavailable:", tlError.message);
+    return { data: { request, timeline: [] }, error: null };
+  }
+
+  const timeline = [];
+  timeline.push({
+    event_type: "created",
+    created_at: request.created_at,
+    payload: {},
+    performed_by: request.requester_id
+  });
+
+  for (const r of rows || []) {
+    timeline.push({
+      id: r.id,
+      event_type: r.event_type,
+      created_at: r.created_at,
+      payload: r.payload || {},
+      performed_by: r.performed_by
+    });
+  }
+
+  timeline.sort((a, b) =>
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  return {
+    data: { request, timeline },
+    error: null
+  };
+}
+
+/**
+ * Manager: request clarification from employee.
+ * Inserts timeline row and sets request status to clarification_requested.
+ * @param {string} requestId
+ * @param {Object} params
+ * @param {string} params.message - Required clarification message
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function requestClarification(requestId, { message }) {
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { data: null, error: authError || new Error("Not authenticated") };
+  }
+
+  if (!message?.trim()) {
+    return { data: null, error: new Error("message is required") };
+  }
+
+  const { error: tlError } = await supabase.from("request_timeline").insert({
+    request_id: requestId,
+    event_type: "clarification_requested",
+    performed_by: user.id,
+    payload: { message: message.trim() }
+  });
+
+  if (tlError) return { data: null, error: tlError };
+
+  const { data, error } = await supabase
+    .from("requests")
+    .update({ status: "clarification_requested", updated_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+/**
+ * Employee: provide clarification (response + optional attachments).
+ * Uploads files, inserts timeline row, sets status to pending.
+ * @param {string} requestId
+ * @param {Object} params
+ * @param {string} params.response - Required clarification response
+ * @param {File[]} [params.attachmentFiles] - Optional files to attach
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function provideClarification(requestId, { response, attachmentFiles }) {
+  const {
+    data: { user },
+    error: authError
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { data: null, error: authError || new Error("Not authenticated") };
+  }
+
+  if (!response?.trim()) {
+    return { data: null, error: new Error("response is required") };
+  }
+
+  const attachmentUrls = [];
+  const files = Array.isArray(attachmentFiles)
+    ? attachmentFiles
+    : attachmentFiles
+      ? [attachmentFiles]
+      : [];
+
+  for (const f of files) {
+    if (f instanceof File) {
+      const { url, error: uploadErr } = await uploadClarificationFile(f, requestId);
+      if (uploadErr) return { data: null, error: uploadErr };
+      if (url) attachmentUrls.push(url);
+    }
+  }
+
+  const { error: tlError } = await supabase.from("request_timeline").insert({
+    request_id: requestId,
+    event_type: "clarification_provided",
+    performed_by: user.id,
+    payload: { response: response.trim(), attachment_urls: attachmentUrls }
+  });
+
+  if (tlError) return { data: null, error: tlError };
+
+  const { data, error } = await supabase
+    .from("requests")
+    .update({ status: "pending", updated_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .select()
+    .single();
+
+  return { data, error };
 }
 
 /**
@@ -282,6 +500,81 @@ export async function getMyRequests() {
     .order("created_at", { ascending: false });
 
   return { data: data || [], error };
+}
+
+/**
+ * Fetch approved requests for disbursement (accountant/admin).
+ * @returns {Promise<{data: Array, error: Error|null}>}
+ */
+export async function getApprovedRequests() {
+  const { data, error } = await supabase
+    .from("requests")
+    .select(
+      `
+      *,
+      requester:profiles!requester_id(full_name)
+    `
+    )
+    .eq("status", "approved")
+    .order("created_at", { ascending: false });
+
+  return { data: data || [], error };
+}
+
+/**
+ * Get current cash float balance (admin). Requires get_cash_float RPC.
+ * @returns {Promise<{data: number|null, error: Error|null}>}
+ */
+export async function getCashFloat() {
+  const { data, error } = await supabase.rpc("get_cash_float");
+  if (error) return { data: null, error };
+  return { data: data ?? 0, error: null };
+}
+
+/**
+ * Top up cash float (admin). Requires update_cash_float RPC.
+ * @param {number} amount - Amount in FCFA to add
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function updateCashFloat(amount) {
+  const val = Number(amount);
+  if (isNaN(val) || val <= 0) {
+    return { data: null, error: new Error("Amount must be a positive number") };
+  }
+  const { data, error } = await supabase.rpc("update_cash_float", {
+    amount_add: val,
+  });
+  if (error) return { data: null, error };
+  return { data: data ?? null, error: null };
+}
+
+/**
+ * List users for admin. Requires list_profiles RPC.
+ * @returns {Promise<{data: Array, error: Error|null}>}
+ */
+export async function listUsers() {
+  const { data, error } = await supabase.rpc("list_profiles");
+  if (error) return { data: [], error };
+  return { data: data ?? [], error: null };
+}
+
+/**
+ * Update user role (admin). Requires update_user_role RPC.
+ * @param {string} userId - Profile UUID
+ * @param {string} newRole - One of employee, manager, accountant, admin
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function updateUserRole(userId, newRole) {
+  const valid = ["employee", "manager", "accountant", "admin"];
+  if (!valid.includes(newRole)) {
+    return { data: null, error: new Error(`Role must be one of: ${valid.join(", ")}`) };
+  }
+  const { data, error } = await supabase.rpc("update_user_role", {
+    target_user_id: userId,
+    new_role: newRole,
+  });
+  if (error) return { data: null, error };
+  return { data: data ?? null, error: null };
 }
 
 /**

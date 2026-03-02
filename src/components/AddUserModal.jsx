@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { createUser, getNextEmployeeId } from "../utils/userApi";
+import { createUser, getUniqueRandomEmployeeId } from "../utils/userApi";
 
 const ROLES = [
   { value: "employee", label: "Employee" },
@@ -28,11 +28,19 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
     setIdLoading(true);
     setEmployeeId(null);
 
-    getNextEmployeeId()
-      .then(({ data }) => {
-        setEmployeeId(data ?? 10000);
+    getUniqueRandomEmployeeId()
+      .then(({ data, error: idError }) => {
+        if (idError) {
+          setError("Failed to generate ID — try again");
+          setEmployeeId(null);
+        } else {
+          setEmployeeId(data);
+        }
       })
-      .catch(() => setEmployeeId(10000))
+      .catch(() => {
+        setError("Failed to generate ID — try again");
+        setEmployeeId(null);
+      })
       .finally(() => setIdLoading(false));
   }, [isOpen]);
 
@@ -46,6 +54,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
       password,
       full_name: fullName.trim(),
       role,
+      ...(employeeId != null && { employee_id: employeeId }),
     });
 
     setLoading(false);
@@ -96,7 +105,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               )}
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              Auto-generated 5-digit code
+              Auto-generated random 5-digit code
             </p>
           </div>
 

@@ -4,7 +4,7 @@
 
 1. Open [Supabase Dashboard](https://supabase.com/dashboard) → select project `ciktllfgjablxwkheutw`
 2. Go to **SQL Editor** → **New query**
-3. Copy the contents of `supabase/add-user-setup.sql` and paste
+3. Copy the contents of `supabase/add-user-setup.sql` and paste (includes `get_unique_random_employee_id`)
 4. Click **Run** (or Cmd+Enter)
 
 ## Step 2: Deploy the Edge Function
@@ -23,9 +23,12 @@ supabase link --project-ref ciktllfgjablxwkheutw
 
 # Deploy the create-user function (verify_jwt=false to avoid "Invalid JWT" with ES256 tokens)
 supabase functions deploy create-user --no-verify-jwt
+
+# Deploy the delete-user function (admin-only user deletion)
+supabase functions deploy delete-user --no-verify-jwt
 ```
 
-**Why `--no-verify-jwt`?** Supabase's gateway can reject valid JWTs (e.g. with ES256 signing). Our function still validates the user via `getUser()` inside the function, so it remains secure.
+**Why `--no-verify-jwt`?** Supabase's gateway can reject valid JWTs (e.g. with ES256 signing). Our functions still validate the user via `getUser()` inside, so they remain secure.
 
 The service role key is automatically available to Edge Functions in your project.
 
