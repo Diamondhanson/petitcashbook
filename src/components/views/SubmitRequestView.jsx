@@ -60,7 +60,7 @@ function SubmitRequestView() {
   return (
     <div className="mx-auto max-w-2xl">
       <h2 className="mb-6 text-lg font-semibold text-brand-dark">Submit Request</h2>
-      <p className="mb-6 text-slate-600">
+      <p className="mb-6 text-accent">
         Submit a petty cash request. Attach a receipt if available.
       </p>
 
@@ -72,7 +72,7 @@ function SubmitRequestView() {
 
       <form
         onSubmit={handleSubmit}
-        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="rounded-xl border border-slate-300 bg-white p-6 shadow-md"
       >
         <div className="space-y-4">
           <div>
@@ -86,7 +86,7 @@ function SubmitRequestView() {
               required
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
               disabled={submitting}
             />
           </div>
@@ -101,7 +101,7 @@ function SubmitRequestView() {
               required
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
               placeholder="Describe the reason for this request"
               disabled={submitting}
             />
@@ -115,7 +115,7 @@ function SubmitRequestView() {
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
               disabled={submitting}
             >
               {REQUEST_CATEGORIES.map((c) => (

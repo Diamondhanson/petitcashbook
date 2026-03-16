@@ -78,10 +78,10 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
         tabIndex={0}
         aria-label="Close modal"
       />
-      <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg">
-        <div className="border-b border-slate-100 px-6 py-4">
+      <div className="relative w-full max-w-md rounded-xl border border-slate-300 bg-white shadow-xl">
+        <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-brand-dark">Add new user</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-accent">
             Create a user account with email and password
           </p>
         </div>
@@ -97,14 +97,14 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
             <label className="block text-sm font-medium text-brand-dark">
               User ID
             </label>
-            <div className="mt-1 flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-4 text-brand-dark">
+            <div className="mt-1 flex h-10 items-center rounded-lg border border-slate-300 bg-slate-100 px-4 text-brand-dark">
               {idLoading ? (
-                <span className="text-slate-500">Generating…</span>
+                <span className="text-accent">Generating…</span>
               ) : (
                 <span className="font-mono font-medium">{employeeId}</span>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-accent">
               Auto-generated random 5-digit code
             </p>
           </div>
@@ -119,7 +119,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="user@company.com"
               disabled={loading}
             />
@@ -136,11 +136,11 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="••••••••"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-slate-500">Minimum 6 characters</p>
+            <p className="mt-1 text-xs text-accent">Minimum 6 characters</p>
           </div>
 
           <div>
@@ -153,7 +153,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="John Doe"
               disabled={loading}
             />
@@ -167,7 +167,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               id="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               disabled={loading}
             >
               {ROLES.map((r) => (
@@ -182,7 +182,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Cancel
             </button>

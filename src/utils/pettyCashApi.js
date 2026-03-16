@@ -128,6 +128,13 @@ export async function createRequest({
  * @returns {Promise<{data: object|null, error: Error|null}>}
  */
 export async function updateRequestStatus(requestId, updates) {
+  if (!requestId) {
+    return {
+      data: null,
+      error: new Error("requestId is required for update")
+    };
+  }
+
   const { status, rejection_reason, manager_comment } = updates;
 
   const {
@@ -154,22 +161,30 @@ export async function updateRequestStatus(requestId, updates) {
     };
   }
 
-  const payload = { status, updated_at: new Date().toISOString() };
-
+  const rpcParams = {
+    p_request_id: requestId,
+    p_status: status,
+    p_manager_id: null,
+    p_rejection_reason: null
+  };
   if (status === "approved" || status === "rejected") {
-    payload.manager_id = user.id;
-    if (rejection_reason) payload.rejection_reason = rejection_reason.trim();
-    if (manager_comment) payload.manager_comment = manager_comment.trim();
+    rpcParams.p_manager_id = user.id;
+    if (rejection_reason) rpcParams.p_rejection_reason = rejection_reason.trim();
   }
 
-  const { data: request, error } = await supabase
-    .from("requests")
-    .update(payload)
-    .eq("id", requestId)
-    .select()
-    .single();
+  const { data: rawRows, error } = await supabase.rpc("update_requests_status", rpcParams);
+
+  // Normalize: RPC RETURNS SETOF can be array or (in some cases) single object.
+  const rows = Array.isArray(rawRows)
+    ? rawRows
+    : rawRows != null && typeof rawRows === "object" && !Array.isArray(rawRows)
+      ? [rawRows]
+      : [];
 
   if (error) return { data: null, error };
+
+  const request = rows.length > 0 ? rows[0] : null;
+  if (!request) return { data: null, error: new Error("Request not found or not updated") };
 
   if (status === "approved" || status === "rejected") {
     const { error: auditError } = await supabase.from("audit_trail").insert({
@@ -414,7 +429,7 @@ export async function requestClarification(requestId, { message }) {
 
   const { data, error } = await supabase
     .from("requests")
-    .update({ status: "clarification_requested", updated_at: new Date().toISOString() })
+    .update({ status: "clarification_requested" })
     .eq("id", requestId)
     .select()
     .single();
@@ -471,7 +486,7 @@ export async function provideClarification(requestId, { response, attachmentFile
 
   const { data, error } = await supabase
     .from("requests")
-    .update({ status: "pending", updated_at: new Date().toISOString() })
+    .update({ status: "pending" })
     .eq("id", requestId)
     .select()
     .single();

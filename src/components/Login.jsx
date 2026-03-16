@@ -20,12 +20,41 @@ function Login({ onLoginSuccess }) {
     setError(null);
     setLoading(true);
 
-    const { data: { user: authUser }, error: authError } =
-      await supabase.auth.signInWithPassword({ email, password });
+    let authUser;
+    let authError;
+    try {
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      authUser = result.data?.user;
+      authError = result.error;
+    } catch (err) {
+      setLoading(false);
+      const msg = err?.message || String(err);
+      const isNetworkError =
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed") ||
+        msg.includes("Network request failed");
+      setError(
+        isNetworkError
+          ? "Cannot reach the server. If you just unpaused your Supabase project, wait 1–2 minutes and try again."
+          : msg
+      );
+      return;
+    }
 
     if (authError) {
       setLoading(false);
-      setError(authError.message);
+      const msg = authError.message || "";
+      const isNetworkError =
+        msg.includes("Failed to fetch") ||
+        msg.includes("NetworkError") ||
+        msg.includes("Load failed") ||
+        msg.includes("Network request failed");
+      setError(
+        isNetworkError
+          ? "Cannot reach the server. If you just unpaused your Supabase project, wait 1–2 minutes and try again."
+          : msg
+      );
       return;
     }
 
@@ -59,15 +88,15 @@ function Login({ onLoginSuccess }) {
   return (
     <div className="min-h-screen bg-surface font-sans text-brand-dark flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="rounded-xl border border-slate-300 bg-white p-8 shadow-md">
           <h1 className="text-2xl font-semibold tracking-tight text-brand-dark">
             Petit Cash Book
           </h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-accent">
             Sign in with your credentials
           </p>
 
-          <div className="mt-6 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <div className="mt-6 flex rounded-lg border border-slate-300 bg-slate-100 p-1">
             <button
               type="button"
               onClick={() => setMode("admin")}
@@ -118,7 +147,7 @@ function Login({ onLoginSuccess }) {
                   required={mode === "employee"}
                   value={userId}
                   onChange={(e) => setUserId(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                  className="mt-2 block w-full rounded-lg border border-slate-200 px-4 py-3 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                  className="mt-2 block w-full rounded-lg border border-slate-300 px-4 py-3 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
                   placeholder="12345"
                   disabled={loading}
                 />
@@ -139,7 +168,7 @@ function Login({ onLoginSuccess }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-2 block w-full rounded-lg border border-slate-200 px-4 py-3 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                className="mt-2 block w-full rounded-lg border border-slate-300 px-4 py-3 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
                 placeholder="you@example.com"
                 disabled={loading}
               />
@@ -160,7 +189,7 @@ function Login({ onLoginSuccess }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                  className="block w-full rounded-lg border border-slate-300 px-4 py-3 pr-12 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
                   placeholder="••••••••"
                   disabled={loading}
                 />

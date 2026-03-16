@@ -78,10 +78,10 @@ function ExportView() {
   return (
     <div className="mx-auto max-w-6xl">
       <h2 className="mb-6 text-lg font-semibold text-brand-dark">Export</h2>
-      <p className="mb-6 text-slate-600">
+      <p className="mb-6 text-accent">
         Export disbursed requests by date range. Leave empty for all data.
       </p>
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-300 bg-white p-6 shadow-md">
         <div className="mb-6 flex flex-wrap gap-4">
           <div>
             <label className="block text-sm font-medium text-brand-dark">Start date</label>
@@ -89,7 +89,7 @@ function ExportView() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 rounded-lg border border-slate-200 px-4 py-2 text-brand-dark"
+              className="mt-1 rounded-lg border border-slate-300 px-4 py-2 text-brand-dark"
             />
           </div>
           <div>
@@ -98,7 +98,7 @@ function ExportView() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 rounded-lg border border-slate-200 px-4 py-2 text-brand-dark"
+              className="mt-1 rounded-lg border border-slate-300 px-4 py-2 text-brand-dark"
             />
           </div>
         </div>

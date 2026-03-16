@@ -107,7 +107,7 @@ function PendingQueueView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-500">
+      <div className="flex items-center justify-center py-24 text-accent">
         Loading…
       </div>
     );
@@ -116,7 +116,7 @@ function PendingQueueView() {
   return (
     <div className="mx-auto max-w-6xl">
       <h2 className="mb-6 text-lg font-semibold text-brand-dark">Pending Queue</h2>
-      <p className="mb-6 text-slate-600">
+      <p className="mb-6 text-accent">
         Approve or reject petty cash requests. Rejections require a reason and are recorded in the audit trail.
       </p>
 
@@ -141,7 +141,7 @@ function PendingQueueView() {
             tabIndex={0}
             aria-label="Close"
           />
-          <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+          <div className="relative w-full max-w-md rounded-xl border border-slate-300 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-brand-dark">Reject Request</h3>
             <p className="mt-2 text-slate-600">
               Reject request from {rejectTarget.requester?.full_name ?? "unknown"} for{" "}
@@ -160,7 +160,7 @@ function PendingQueueView() {
                 required
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
                 placeholder="Enter reason for rejection"
                 disabled={rejecting}
               />
@@ -169,7 +169,7 @@ function PendingQueueView() {
               <button
                 type="button"
                 onClick={handleRejectCancel}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -186,34 +186,34 @@ function PendingQueueView() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-300 bg-white shadow-md overflow-hidden">
         {requests.length === 0 ? (
-          <p className="px-8 py-12 text-center text-slate-500">No pending requests</p>
+          <p className="px-8 py-12 text-center text-accent">No pending requests</p>
         ) : (
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-100">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Requester
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Purpose
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Status
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-accent">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-200 bg-white">
               {requests.map((r) => (
                 <tr
                   key={r.id}
@@ -226,8 +226,8 @@ function PendingQueueView() {
                   <td className="px-6 py-4 text-sm font-medium text-brand-dark">
                     {formatAmount(r.amount)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{r.purpose ?? "—"}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{r.category ?? "—"}</td>
+                  <td className="px-6 py-4 text-sm text-accent">{r.purpose ?? "—"}</td>
+                  <td className="px-6 py-4 text-sm text-accent">{r.category ?? "—"}</td>
                   <td className="px-6 py-4">
                     {r.status === "clarification_requested" ? (
                       <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
@@ -260,7 +260,7 @@ function PendingQueueView() {
                       <button
                         type="button"
                         onClick={() => setDetailsRequestId(r.id)}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                       >
                         View details
                       </button>

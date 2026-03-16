@@ -110,10 +110,6 @@ export async function deleteUser(userId) {
       parsed = {};
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/6d7802c7-d21a-4e95-90af-01c0ab23108d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'userApi.js:deleteUser',message:'Delete response',data:{status:res.status,ok:res.ok,parsedError:parsed?.error,parsedMessage:parsed?.message,rawText:text?.slice(0,200)},hypothesisId:'A',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-
     if (!res.ok) {
       const msg =
         parsed?.error ||

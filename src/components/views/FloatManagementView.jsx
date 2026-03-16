@@ -44,7 +44,7 @@ function FloatManagementView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-500">
+      <div className="flex items-center justify-center py-24 text-accent">
         Loading…
       </div>
     );
@@ -53,29 +53,29 @@ function FloatManagementView() {
   return (
     <div className="mx-auto max-w-6xl">
       <h2 className="mb-6 text-lg font-semibold text-brand-dark">Float Management</h2>
-      <p className="mb-6 text-slate-600">
+      <p className="mb-6 text-accent">
         View current cash float balance and add top-ups.
       </p>
 
-      <div className="mb-8 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-medium text-slate-500">Current Balance</p>
+      <div className="mb-8 rounded-xl border border-slate-300 bg-white p-8 shadow-md">
+        <p className="text-sm font-medium text-accent">Current Balance</p>
         <p className="mt-2 text-3xl font-semibold text-brand-dark">
           {formatAmount(balance ?? 0)}
         </p>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-slate-300 bg-white p-6 shadow-md">
         <h3 className="mb-4 text-base font-medium text-brand-dark">Top up</h3>
         <form onSubmit={handleTopUp} className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-600">Amount (FCFA)</label>
+            <label className="block text-sm font-medium text-accent">Amount (FCFA)</label>
             <input
               type="number"
               min="1"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="e.g. 50000"
-              className="mt-1 rounded-lg border border-slate-200 px-4 py-2 text-brand-dark"
+              className="mt-1 rounded-lg border border-slate-300 px-4 py-2 text-brand-dark"
               disabled={submitting}
             />
           </div>

@@ -61,7 +61,7 @@ function OverviewView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-500">
+      <div className="flex items-center justify-center py-24 text-accent">
         Loading…
       </div>
     );
@@ -75,14 +75,14 @@ function OverviewView() {
           {cards.map((card) => (
             <div
               key={card.label}
-              className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
+              className="rounded-xl border border-slate-300 bg-white p-8 shadow-md transition-shadow hover:shadow-lg"
             >
-              <p className="text-sm font-medium text-slate-500">{card.label}</p>
+              <p className="text-sm font-medium text-accent">{card.label}</p>
               <p className="mt-4 text-2xl font-semibold text-brand-dark">{card.value}</p>
               {card.trend && (
                 <span
                   className={`mt-2 inline-block text-sm ${
-                    card.trend.startsWith("+") ? "text-emerald-600" : "text-slate-600"
+                    card.trend.startsWith("+") ? "text-emerald-600" : "text-accent"
                   }`}
                 >
                   {card.trend} vs last month
@@ -95,11 +95,11 @@ function OverviewView() {
 
       <section>
         <h2 className="mb-6 text-lg font-semibold text-brand-dark">Recent Activity</h2>
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-xl border border-slate-300 bg-white shadow-md">
           {transactions.length === 0 ? (
-            <p className="px-8 py-12 text-center text-slate-500">No recent activity</p>
+            <p className="px-8 py-12 text-center text-accent">No recent activity</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-200">
               {transactions.map((tx) => (
                 <li
                   key={tx.id}
@@ -107,7 +107,7 @@ function OverviewView() {
                 >
                   <div>
                     <p className="font-medium text-brand-dark">{tx.description}</p>
-                    <p className="text-sm text-slate-500">{tx.date}</p>
+                    <p className="text-sm text-accent">{tx.date}</p>
                   </div>
                   <span className="font-medium text-brand-dark">{tx.amount}</span>
                 </li>

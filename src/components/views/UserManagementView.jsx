@@ -78,7 +78,7 @@ function UserManagementView() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-brand-dark">User Management</h2>
-          <p className="mt-1 text-slate-600">Add users and manage roles</p>
+          <p className="mt-1 text-accent">Add users and manage roles</p>
         </div>
         <button
           type="button"
@@ -101,7 +101,7 @@ function UserManagementView() {
             tabIndex={0}
             aria-label="Close"
           />
-          <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
+          <div className="relative w-full max-w-md rounded-xl border border-slate-300 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-brand-dark">Delete user</h3>
             <p className="mt-2 text-slate-600">
               Delete {deleteTarget.full_name ?? deleteTarget.email ?? "this user"}? This cannot be undone.
@@ -110,7 +110,7 @@ function UserManagementView() {
               <button
                 type="button"
                 onClick={handleDeleteCancel}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -133,46 +133,46 @@ function UserManagementView() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-300 bg-white shadow-md overflow-hidden">
         {loading ? (
-          <p className="px-8 py-12 text-center text-slate-500">Loading…</p>
+          <p className="px-8 py-12 text-center text-accent">Loading…</p>
         ) : error ? (
-          <p className="px-8 py-12 text-center text-slate-500">Could not load users. See error above.</p>
+          <p className="px-8 py-12 text-center text-accent">Could not load users. See error above.</p>
         ) : users.length === 0 ? (
-          <p className="px-8 py-12 text-center text-slate-500">No users</p>
+          <p className="px-8 py-12 text-center text-accent">No users</p>
         ) : (
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-100">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Email
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Role
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-accent">
                   Action
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-200 bg-white">
               {users.map((u) => (
                 <tr key={u.id}>
                   <td className="px-6 py-4 text-sm text-brand-dark">
                     {u.full_name ?? u.raw_user_meta_data?.full_name ?? "—"}
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{u.email ?? "—"}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{u.role ?? "—"}</td>
+                  <td className="px-6 py-4 text-sm text-accent">{u.email ?? "—"}</td>
+                  <td className="px-6 py-4 text-sm text-accent">{u.role ?? "—"}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-3">
                       <select
                         value={u.role ?? ""}
                         onChange={(e) => handleRoleChange(u.id, e.target.value)}
                         disabled={updating === u.id}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-brand-dark disabled:opacity-50"
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-brand-dark disabled:opacity-50"
                       >
                         <option value="employee">Employee</option>
                         <option value="manager">Manager</option>

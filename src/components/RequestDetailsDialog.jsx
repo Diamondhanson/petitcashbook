@@ -41,6 +41,13 @@ function formatDate(iso) {
   });
 }
 
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"];
+function isImageUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  const path = url.split("?")[0].toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => path.endsWith(ext));
+}
+
 function RequestDetailsDialog({
   requestId,
   onClose,
@@ -58,9 +65,9 @@ function RequestDetailsDialog({
   const [rejectionReason, setRejectionReason] = useState("");
   const [showClarifyModal, setShowClarifyModal] = useState(false);
   const [clarifyMessage, setClarifyMessage] = useState("");
-  const [showProvideForm, setShowProvideForm] = useState(false);
   const [provideResponse, setProvideResponse] = useState("");
   const [provideFiles, setProvideFiles] = useState([]);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
   const refreshTimeline = React.useCallback(async () => {
     setLoading(true);
@@ -74,6 +81,15 @@ function RequestDetailsDialog({
   useEffect(() => {
     refreshTimeline();
   }, [refreshTimeline]);
+
+  useEffect(() => {
+    if (!previewImageUrl) return;
+    const onEscape = (e) => {
+      if (e.key === "Escape") setPreviewImageUrl(null);
+    };
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [previewImageUrl]);
 
   const handleApprove = async () => {
     setActionLoading("approve");
@@ -122,7 +138,6 @@ function RequestDetailsDialog({
         attachmentFiles: provideFiles.length ? provideFiles : undefined
       });
       await refreshTimeline();
-      setShowProvideForm(false);
       setProvideResponse("");
       setProvideFiles([]);
     } finally {
@@ -136,7 +151,10 @@ function RequestDetailsDialog({
   const status = r?.status ?? "";
   const canApproveRejectClarify =
     isManager && (status === "pending" || status === "clarification_requested");
-  const needsClarification = status === "clarification_requested" && !isManager;
+  // Show reply area for employees whenever request is not yet resolved (pending or awaiting clarification).
+  const showReplyAreaForEmployee =
+    !isManager &&
+    (status === "pending" || status === "clarification_requested");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -149,10 +167,10 @@ function RequestDetailsDialog({
         aria-label="Close"
       />
       <div
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"
+        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-6 py-4">
+        <div className="z-10 flex-shrink-0 border-b border-slate-300 bg-white px-6 py-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-brand-dark">Request Details</h3>
             <button
@@ -166,199 +184,241 @@ function RequestDetailsDialog({
           </div>
         </div>
 
-        <div className="px-6 py-4">
-          {loading && (
-            <p className="py-8 text-center text-slate-500">Loading…</p>
-          )}
-          {error && (
-            <p className="py-8 text-center text-red-600">{error.message ?? "Failed to load"}</p>
-          )}
-          {!loading && !error && r && (
-            <>
-              <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/50 p-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-brand-dark">
-                    {r.requester?.full_name ?? "—"}
-                  </span>
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      STATUS_CLASSES[status] ?? "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {STATUS_LABELS[status] ?? status}
-                  </span>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            {loading && (
+              <p className="py-8 text-center text-accent">Loading…</p>
+            )}
+            {error && (
+              <p className="py-8 text-center text-red-600">{error.message ?? "Failed to load"}</p>
+            )}
+            {!loading && !error && r && (
+              <>
+                <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-100 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-brand-dark">
+                      {r.requester?.full_name ?? "—"}
+                    </span>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        STATUS_CLASSES[status] ?? "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {STATUS_LABELS[status] ?? status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    <span className="font-medium text-brand-dark">{formatAmount(r.amount)}</span>
+                    {" · "}
+                    {r.category ?? "—"}
+                  </div>
+                  <p className="text-sm text-slate-600">{r.purpose ?? "—"}</p>
+                  {r.receipt_url && (
+                    <a
+                      href={r.receipt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-brand-dark underline hover:text-slate-700"
+                    >
+                      View receipt
+                    </a>
+                  )}
                 </div>
-                <div className="text-sm text-slate-600">
-                  <span className="font-medium text-brand-dark">{formatAmount(r.amount)}</span>
-                  {" · "}
-                  {r.category ?? "—"}
-                </div>
-                <p className="text-sm text-slate-600">{r.purpose ?? "—"}</p>
-                {r.receipt_url && (
-                  <a
-                    href={r.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-brand-dark underline hover:text-slate-700"
-                  >
-                    View receipt
-                  </a>
-                )}
-              </div>
 
-              <h4 className="mt-6 mb-3 text-sm font-semibold text-brand-dark">Timeline</h4>
-              <ul className="space-y-4">
-                {timeline.map((evt, i) => (
-                  <li key={evt.id ?? `created-${i}`} className="flex gap-3">
-                    <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-slate-300" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-brand-dark">
-                        {EVENT_LABELS[evt.event_type] ?? evt.event_type}
+                <h4 className="mt-6 mb-3 text-sm font-semibold text-brand-dark">Timeline</h4>
+                <ul className="space-y-4">
+                  {timeline.map((evt, i) => (
+                    <li key={evt.id ?? `created-${i}`} className="flex gap-3">
+                      <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-slate-300" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-brand-dark">
+                          {EVENT_LABELS[evt.event_type] ?? evt.event_type}
+                        </div>
+                        <div className="text-xs text-accent">
+                          {formatDate(evt.created_at)}
+                        </div>
+                        {evt.event_type === "clarification_requested" && evt.payload?.message && (
+                          <p className="mt-2 rounded border border-slate-200 bg-orange-50/80 p-2 text-sm text-slate-700">
+                            {evt.payload.message}
+                          </p>
+                        )}
+                        {evt.event_type === "clarification_provided" && (
+                          <>
+                            {evt.payload?.response && (
+                              <p className="mt-2 rounded border border-slate-200 bg-emerald-50/80 p-2 text-sm text-slate-700">
+                                {evt.payload.response}
+                              </p>
+                            )}
+                            {evt.payload?.attachment_urls?.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-4">
+                                {evt.payload.attachment_urls.map((url, j) => {
+                                  const image = isImageUrl(url);
+                                  const label = `Attachment ${j + 1}`;
+                                  return (
+                                    <div
+                                      key={j}
+                                      className="flex flex-col rounded-lg border border-slate-200 bg-slate-50/80 p-2"
+                                    >
+                                      {image ? (
+                                        <>
+                                          <button
+                                            type="button"
+                                            onClick={() => setPreviewImageUrl(url)}
+                                            className="focus:outline-none focus:ring-2 focus:ring-brand-dark focus:ring-offset-1 rounded overflow-hidden"
+                                          >
+                                            <img
+                                              src={url}
+                                              alt={label}
+                                              className="h-32 w-auto max-w-full object-contain bg-white rounded"
+                                            />
+                                          </button>
+                                          <p className="mt-1 text-xs text-slate-600 text-center">
+                                            {label}
+                                          </p>
+                                        </>
+                                      ) : (
+                                        <p className="text-sm font-medium text-slate-700 py-2">
+                                          {label}
+                                        </p>
+                                      )}
+                                      <div className="mt-1 flex flex-wrap gap-2 justify-center">
+                                        <a
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-brand-dark underline hover:text-slate-700"
+                                        >
+                                          {image ? "Open in new tab" : "View"}
+                                        </a>
+                                        <a
+                                          href={url}
+                                          download
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-brand-dark underline hover:text-slate-700"
+                                        >
+                                          Download
+                                        </a>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {evt.event_type === "rejected" && evt.payload?.rejection_reason && (
+                          <p className="mt-2 rounded border border-red-50 bg-red-50/50 p-2 text-sm text-red-800">
+                            {evt.payload.rejection_reason}
+                          </p>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-500">
-                        {formatDate(evt.created_at)}
-                      </div>
-                      {evt.event_type === "clarification_requested" && evt.payload?.message && (
-                        <p className="mt-2 rounded border border-slate-100 bg-white p-2 text-sm text-slate-700">
-                          {evt.payload.message}
-                        </p>
-                      )}
-                      {evt.event_type === "clarification_provided" && (
-                        <>
-                          {evt.payload?.response && (
-                            <p className="mt-2 rounded border border-slate-100 bg-white p-2 text-sm text-slate-700">
-                              {evt.payload.response}
-                            </p>
-                          )}
-                          {evt.payload?.attachment_urls?.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {evt.payload.attachment_urls.map((url, j) => (
-                                <a
-                                  key={j}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-brand-dark underline hover:text-slate-700"
-                                >
-                                  Attachment {j + 1}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {evt.event_type === "rejected" && evt.payload?.rejection_reason && (
-                        <p className="mt-2 rounded border border-red-50 bg-red-50/50 p-2 text-sm text-red-800">
-                          {evt.payload.rejection_reason}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                    </li>
+                  ))}
+                </ul>
 
-              {canApproveRejectClarify && status === "pending" && (
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={handleApprove}
-                    disabled={!!actionLoading}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    {actionLoading === "approve" ? "Approving…" : "Approve"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRejectModal(true)}
-                    disabled={!!actionLoading}
-                    className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowClarifyModal(true)}
-                    disabled={!!actionLoading}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    Request clarification
-                  </button>
-                </div>
-              )}
-
-              {canApproveRejectClarify && status === "clarification_requested" && (
-                <p className="mt-6 text-sm text-slate-600">
-                  Awaiting employee clarification. You can approve or reject once they respond.
-                </p>
-              )}
-
-              {needsClarification && !showProvideForm && (
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowProvideForm(true)}
-                    disabled={!!actionLoading}
-                    className="rounded-lg bg-brand-dark px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-                  >
-                    Provide clarification
-                  </button>
-                </div>
-              )}
-
-              {needsClarification && showProvideForm && (
-                <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-                  <h4 className="text-sm font-semibold text-brand-dark">Provide clarification</h4>
-                  <label className="mt-3 block text-sm font-medium text-brand-dark">
-                    Response (required)
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={provideResponse}
-                    onChange={(e) => setProvideResponse(e.target.value)}
-                    placeholder="Enter your clarification response"
-                    className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
-                    disabled={!!actionLoading}
-                  />
-                  <label className="mt-3 block text-sm font-medium text-brand-dark">
-                    Attachments (optional)
-                  </label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) => setProvideFiles(Array.from(e.target.files || []))}
-                    className="mt-1 block w-full text-sm text-slate-600"
-                    disabled={!!actionLoading}
-                  />
-                  <div className="mt-4 flex gap-3">
+                {canApproveRejectClarify && status === "pending" && (
+                  <div className="mt-6 flex flex-wrap gap-3">
                     <button
                       type="button"
-                      onClick={handleProvideClarifySubmit}
-                      disabled={!!actionLoading || !provideResponse.trim()}
-                      className="rounded-lg bg-brand-dark px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                      onClick={handleApprove}
+                      disabled={!!actionLoading}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
-                      {actionLoading === "provide" ? "Submitting…" : "Submit"}
+                      {actionLoading === "approve" ? "Approving…" : "Approve"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowProvideForm(false);
-                        setProvideResponse("");
-                        setProvideFiles([]);
-                      }}
+                      onClick={() => setShowRejectModal(true)}
                       disabled={!!actionLoading}
-                      className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
-                      Cancel
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowClarifyModal(true)}
+                      disabled={!!actionLoading}
+                      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      Request clarification
                     </button>
                   </div>
-                </div>
-              )}
-            </>
+                )}
+
+                {canApproveRejectClarify && status === "clarification_requested" && (
+                  <p className="mt-6 text-sm text-slate-600">
+                    Awaiting employee clarification. You can approve or reject once they respond.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {showReplyAreaForEmployee && (
+            <div
+              className="flex-shrink-0 border-t border-slate-200 bg-white px-6 py-4"
+              role="region"
+              aria-label="Your response"
+            >
+              <h4 className="text-sm font-semibold text-brand-dark">Your response</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Add your clarification and attach receipts, images, or PDFs for the manager.
+              </p>
+              <label className="mt-3 block text-sm font-medium text-brand-dark">
+                Response (required)
+              </label>
+              <textarea
+                rows={3}
+                value={provideResponse}
+                onChange={(e) => setProvideResponse(e.target.value)}
+                placeholder="Enter your clarification response"
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
+                disabled={!!actionLoading}
+                aria-required="true"
+              />
+              <label className="mt-3 block text-sm font-medium text-brand-dark">
+                Attachments (optional) — images or PDF
+              </label>
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => setProvideFiles(Array.from(e.target.files || []))}
+                className="mt-1 block w-full text-sm text-slate-600"
+                disabled={!!actionLoading}
+                aria-describedby="clarification-attachments-hint"
+              />
+              <p id="clarification-attachments-hint" className="sr-only">
+                You can attach receipts, images, or PDF files
+              </p>
+              <div className="mt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleProvideClarifySubmit}
+                  disabled={!!actionLoading || !provideResponse.trim()}
+                  className="rounded-lg bg-brand-dark px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {actionLoading === "provide" ? "Submitting…" : "Submit"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProvideResponse("");
+                    setProvideFiles([]);
+                  }}
+                  disabled={!!actionLoading}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
         {showRejectModal && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/95 p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl border border-slate-200 bg-white p-6 shadow-inner">
             <div className="w-full max-w-md">
               <h4 className="text-lg font-semibold text-brand-dark">Reject Request</h4>
               <p className="mt-2 text-sm text-slate-600">
@@ -369,7 +429,7 @@ function RequestDetailsDialog({
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Enter reason for rejection"
-                className="mt-3 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
+                className="mt-3 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
                 disabled={!!actionLoading}
               />
               <div className="mt-4 flex gap-3">
@@ -388,7 +448,7 @@ function RequestDetailsDialog({
                     setRejectionReason("");
                   }}
                   disabled={!!actionLoading}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -398,7 +458,7 @@ function RequestDetailsDialog({
         )}
 
         {showClarifyModal && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/95 p-6">
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl border border-slate-200 bg-white p-6 shadow-inner">
             <div className="w-full max-w-md">
               <h4 className="text-lg font-semibold text-brand-dark">Request Clarification</h4>
               <p className="mt-2 text-sm text-slate-600">
@@ -409,7 +469,7 @@ function RequestDetailsDialog({
                 value={clarifyMessage}
                 onChange={(e) => setClarifyMessage(e.target.value)}
                 placeholder="Enter your clarification message"
-                className="mt-3 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark"
+                className="mt-3 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark"
                 disabled={!!actionLoading}
               />
               <div className="mt-4 flex gap-3">
@@ -428,9 +488,56 @@ function RequestDetailsDialog({
                     setClarifyMessage("");
                   }}
                   disabled={!!actionLoading}
-                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {previewImageUrl && (
+          <div
+            className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setPreviewImageUrl(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Image preview"
+          >
+            <div
+              className="relative max-h-[90vh] max-w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewImageUrl}
+                alt="Attachment preview"
+                className="max-h-[90vh] max-w-full object-contain rounded shadow-xl"
+              />
+              <div className="mt-2 flex justify-center gap-2">
+                <a
+                  href={previewImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-white"
+                >
+                  Open in new tab
+                </a>
+                <a
+                  href={previewImageUrl}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-white"
+                >
+                  Download
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImageUrl(null)}
+                  className="rounded bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-white"
+                >
+                  Close
                 </button>
               </div>
             </div>

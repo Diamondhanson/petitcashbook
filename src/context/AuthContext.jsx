@@ -45,32 +45,38 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session }, error }) => {
-        if (!mounted) return;
-        if (error) {
-          console.error("getSession error:", error);
+    const applySession = () => {
+      if (!mounted) return;
+      supabase.auth
+        .getSession()
+        .then(({ data: { session }, error }) => {
+          if (!mounted) return;
+          if (error) {
+            console.error("getSession error:", error);
+            setUser(null);
+            setProfile(null);
+          } else {
+            handleSession(session);
+          }
+        })
+        .catch((err) => {
+          if (!mounted) return;
+          console.error("Auth init error:", err);
           setUser(null);
           setProfile(null);
-        } else {
-          handleSession(session);
-        }
-      })
-      .catch((err) => {
-        if (!mounted) return;
-        console.error("Auth init error:", err);
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      });
+          setLoading(false);
+        });
+    };
+
+    applySession();
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(() => {
       if (!mounted) return;
       setLoading(true);
-      await handleSession(session);
+      // Use getSession() as source of truth so a stale null callback doesn't overwrite a valid session
+      applySession();
     });
 
     return () => {

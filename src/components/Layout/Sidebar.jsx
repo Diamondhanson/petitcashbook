@@ -23,7 +23,7 @@ function Sidebar() {
   );
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-[200px] border-r border-slate-200 bg-white">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-[200px] border-r border-navy-light bg-navy shadow-md">
       <nav className="flex flex-col gap-1 p-4 pt-20">
         {visibleItems.map((item) => (
           <NavLink
@@ -33,8 +33,8 @@ function Sidebar() {
             className={({ isActive }) =>
               `rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "bg-slate-100 text-brand-dark"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-brand-dark"
+                  ? "bg-white/15 text-white"
+                  : "text-slate-300 hover:bg-navy-light hover:text-white"
               }`
             }
           >

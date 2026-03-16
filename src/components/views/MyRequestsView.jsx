@@ -69,7 +69,7 @@ function MyRequestsView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-500">
+      <div className="flex items-center justify-center py-24 text-accent">
         Loading…
       </div>
     );
@@ -87,51 +87,51 @@ function MyRequestsView() {
           onProvideClarification={handleProvideClarification}
         />
       )}
-      <p className="mb-6 text-slate-600">
+      <p className="mb-6 text-accent">
         View the status of your petty cash requests.
       </p>
 
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-300 bg-white shadow-md overflow-hidden">
         {requests.length === 0 ? (
-          <p className="px-8 py-12 text-center text-slate-500">No requests yet</p>
+          <p className="px-8 py-12 text-center text-accent">No requests yet</p>
         ) : (
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-100">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Purpose
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Receipt
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-slate-500">
+                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-accent">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-slate-200 bg-white">
               {requests.map((r) => (
                 <tr key={r.id}>
-                  <td className="px-6 py-4 text-sm text-slate-600">
+                  <td className="px-6 py-4 text-sm text-accent">
                     {r.created_at?.slice(0, 10) ?? "—"}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-brand-dark">
                     {formatAmount(r.amount)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{r.purpose ?? "—"}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{r.category ?? "—"}</td>
+                  <td className="px-6 py-4 text-sm text-accent">{r.purpose ?? "—"}</td>
+                  <td className="px-6 py-4 text-sm text-accent">{r.category ?? "—"}</td>
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusClass(
@@ -159,7 +159,7 @@ function MyRequestsView() {
                     <button
                       type="button"
                       onClick={() => setDetailsRequestId(r.id)}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
                       View details
                     </button>
