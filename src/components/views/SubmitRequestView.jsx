@@ -35,7 +35,7 @@ function SubmitRequestView() {
       return;
     }
     setSubmitting(true);
-    const { error: err } = await pettyCashApi.createRequest?.({
+    const { data, error: err } = await pettyCashApi.createRequest?.({
       amount: amt,
       purpose: purpose.trim(),
       category,
@@ -46,7 +46,11 @@ function SubmitRequestView() {
       setError(err.message || "Failed to submit request");
       return;
     }
-    toast.success("Request submitted successfully");
+    if (data?.reference_code) {
+      toast.success(`Request submitted. Your reference: ${data.reference_code}`);
+    } else {
+      toast.success("Request submitted successfully");
+    }
     setAmount("");
     setPurpose("");
     setCategory(REQUEST_CATEGORIES[0] ?? "Office");

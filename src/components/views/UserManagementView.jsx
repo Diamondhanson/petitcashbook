@@ -175,6 +175,7 @@ function UserManagementView() {
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-brand-dark disabled:opacity-50"
                       >
                         <option value="employee">Employee</option>
+                        <option value="cashier">Cashier</option>
                         <option value="manager">Manager</option>
                         <option value="accountant">Accountant</option>
                         <option value="admin">Admin</option>

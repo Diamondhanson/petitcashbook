@@ -118,7 +118,7 @@ export async function createRequest({
 }
 
 /**
- * Update request status (manager approval/rejection or accountant disbursement).
+ * Update request status (manager approval/rejection, or cashier/admin paid out).
  * For managers: creates audit_trail record on approval/rejection.
  * @param {string} requestId - Request UUID
  * @param {Object} updates
@@ -518,7 +518,7 @@ export async function getMyRequests() {
 }
 
 /**
- * Fetch approved requests for disbursement (accountant/admin).
+ * Fetch approved requests ready for payout (cashier desk or admin override).
  * @returns {Promise<{data: Array, error: Error|null}>}
  */
 export async function getApprovedRequests() {
@@ -537,7 +537,45 @@ export async function getApprovedRequests() {
 }
 
 /**
- * Get current cash float balance (admin). Requires get_cash_float RPC.
+ * Look up an approved request by human-readable reference (e.g. PC-100042).
+ * @param {string} code
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function getApprovedRequestByReferenceCode(code) {
+  const normalized = String(code || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  if (!normalized) {
+    return { data: null, error: new Error("Reference is required") };
+  }
+
+  const { data, error } = await supabase
+    .from("requests")
+    .select(
+      `
+      *,
+      requester:profiles!requester_id(full_name)
+    `
+    )
+    .eq("reference_code", normalized)
+    .maybeSingle();
+
+  if (error) return { data: null, error };
+  if (!data) {
+    return { data: null, error: new Error("No request with this reference") };
+  }
+  if (data.status !== "approved") {
+    return {
+      data: null,
+      error: new Error("This request is not approved for payout")
+    };
+  }
+  return { data, error: null };
+}
+
+/**
+ * Get current cash float balance (admin, accountant, cashier). Requires get_cash_float RPC.
  * @returns {Promise<{data: number|null, error: Error|null}>}
  */
 export async function getCashFloat() {
@@ -547,7 +585,17 @@ export async function getCashFloat() {
 }
 
 /**
- * Top up cash float (admin). Requires update_cash_float RPC.
+ * List float top-ups (admin or cashier). Requires list_float_topups RPC.
+ * @returns {Promise<{data: Array, error: Error|null}>}
+ */
+export async function listFloatTopups() {
+  const { data, error } = await supabase.rpc("list_float_topups");
+  if (error) return { data: [], error };
+  return { data: data ?? [], error: null };
+}
+
+/**
+ * Top up cash float (admin or cashier). Requires update_cash_float RPC.
  * @param {number} amount - Amount in FCFA to add
  * @returns {Promise<{data: object|null, error: Error|null}>}
  */
@@ -564,6 +612,97 @@ export async function updateCashFloat(amount) {
 }
 
 /**
+ * Admin: combined petty cash book — float top-ups and closed requests (disbursed / rejected).
+ * Requires migrations: list_float_topups, list_admin_closed_requests, float_topup_log.
+ * @returns {Promise<{data: Array<{kind: string, at: string, amountSigned: number, title: string, detail: string, meta: object}>, error: Error|null}>}
+ */
+export async function getAdminCashbookHistory() {
+  const [{ data: topRows, error: topErr }, { data: reqRows, error: reqErr }] =
+    await Promise.all([
+      supabase.rpc("list_float_topups"),
+      supabase.rpc("list_admin_closed_requests"),
+    ]);
+
+  if (topErr?.code === "PGRST202" || reqErr?.code === "PGRST202") {
+    return {
+      data: [],
+      error: new Error(
+        "Cash book history requires database migration 008 (list_float_topups, list_admin_closed_requests)."
+      ),
+    };
+  }
+  if (topErr) return { data: [], error: topErr };
+  if (reqErr) return { data: [], error: reqErr };
+
+  const entries = [];
+
+  for (const row of topRows || []) {
+    entries.push({
+      kind: "float_topup",
+      at: row.created_at,
+      amountSigned: Number(row.amount_added),
+      title: "Cash float top-up",
+      detail: row.performer_name
+        ? `By ${row.performer_name} · Balance after ${Number(row.balance_after).toLocaleString("en-CA")} FCFA`
+        : `Balance after ${Number(row.balance_after).toLocaleString("en-CA")} FCFA`,
+      meta: {
+        balance_after: row.balance_after,
+        performer_name: row.performer_name,
+      },
+    });
+  }
+
+  for (const r of reqRows || []) {
+    if (r.status === "disbursed") {
+      entries.push({
+        kind: "disbursement",
+        at: r.created_at,
+        amountSigned: -Math.abs(Number(r.amount)),
+        title: "Paid out",
+        detail: [
+          r.reference_code ? `Ref: ${r.reference_code}` : null,
+          r.purpose,
+          r.category,
+          r.requester_name ? `Requester: ${r.requester_name}` : null
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        meta: {
+          request_id: r.id,
+          requester_name: r.requester_name,
+          category: r.category,
+        },
+      });
+    } else if (r.status === "rejected") {
+      entries.push({
+        kind: "rejection",
+        at: r.created_at,
+        amountSigned: 0,
+        title: "Request rejected",
+        detail: [
+          r.purpose,
+          r.category,
+          r.requester_name ? `Requester: ${r.requester_name}` : null,
+          r.manager_name ? `Manager: ${r.manager_name}` : null,
+          r.rejection_reason ? `Reason: ${r.rejection_reason}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        meta: {
+          request_id: r.id,
+          requested_amount: r.amount,
+          requester_name: r.requester_name,
+        },
+      });
+    }
+  }
+
+  entries.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  return { data: entries, error: null };
+}
+
+/**
  * List users for admin. Requires list_profiles RPC.
  * @returns {Promise<{data: Array, error: Error|null}>}
  */
@@ -576,11 +715,11 @@ export async function listUsers() {
 /**
  * Update user role (admin). Requires update_user_role RPC.
  * @param {string} userId - Profile UUID
- * @param {string} newRole - One of employee, manager, accountant, admin
+ * @param {string} newRole - One of employee, manager, accountant, admin, cashier
  * @returns {Promise<{data: object|null, error: Error|null}>}
  */
 export async function updateUserRole(userId, newRole) {
-  const valid = ["employee", "manager", "accountant", "admin"];
+  const valid = ["employee", "manager", "accountant", "admin", "cashier"];
   if (!valid.includes(newRole)) {
     return { data: null, error: new Error(`Role must be one of: ${valid.join(", ")}`) };
   }

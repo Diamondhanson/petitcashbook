@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { createUser, getUniqueRandomEmployeeId } from "../utils/userApi";
 
-const ROLES = [
-  { value: "employee", label: "Employee" },
-  { value: "manager", label: "Manager" },
-  { value: "accountant", label: "Accountant" },
-  { value: "admin", label: "Admin" },
+const ROLE_GROUPS = [
+  {
+    label: "Staff — sign in with Employee mode (User ID + email + password)",
+    options: [
+      { value: "employee", label: "Employee" },
+      { value: "cashier", label: "Cashier (cash desk)" },
+    ],
+  },
+  {
+    label: "Staff — sign in with Admin mode (email + password only)",
+    options: [
+      { value: "manager", label: "Manager" },
+      { value: "accountant", label: "Accountant" },
+      { value: "admin", label: "Admin" },
+    ],
+  },
 ];
 
 function AddUserModal({ isOpen, onClose, onSuccess }) {
@@ -82,7 +93,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-brand-dark">Add new user</h2>
           <p className="mt-1 text-sm text-accent">
-            Create a user account with email and password
+            Create employees, cashiers, managers, accountants, or admins. Employees and cashiers get a User ID for login.
           </p>
         </div>
 
@@ -105,7 +116,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               )}
             </div>
             <p className="mt-1 text-xs text-accent">
-              Auto-generated random 5-digit code
+              Auto-generated 5-digit code. Required for <strong>Employee</strong> and <strong>Cashier</strong> login (Employee sign-in mode).
             </p>
           </div>
 
@@ -170,12 +181,21 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               disabled={loading}
             >
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
+              {ROLE_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
+            {role === "cashier" && (
+              <p className="mt-2 text-xs text-accent">
+                Cashiers use the <strong>Cash desk</strong> screen to verify request references and mark <strong>Paid out</strong>.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">

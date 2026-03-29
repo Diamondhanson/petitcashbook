@@ -11,6 +11,7 @@ import TrendsView from "./components/views/TrendsView";
 import ExportView from "./components/views/ExportView";
 import UserManagementView from "./components/views/UserManagementView";
 import FloatManagementView from "./components/views/FloatManagementView";
+import CashierView from "./components/views/CashierView";
 import { useAuth } from "./context/AuthContext";
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route path="my-requests" element={<MyRequestsView />} />
           <Route path="pending" element={<PendingQueueView />} />
           <Route path="disbursements" element={<DisbursementsView />} />
+          <Route path="cashier" element={<CashierView />} />
           <Route path="statistics" element={<StatisticsView />} />
           <Route path="trends" element={<TrendsView />} />
           <Route path="export" element={<ExportView />} />

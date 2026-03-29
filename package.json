@@ -20,6 +20,8 @@
   },
   "scripts": {
     "deploy:create-user": "supabase functions deploy create-user --project-ref ciktllfgjablxwkheutw --no-verify-jwt",
+    "deploy:delete-user": "supabase functions deploy delete-user --project-ref ciktllfgjablxwkheutw --no-verify-jwt",
+    "deploy:functions": "npm run deploy:create-user && npm run deploy:delete-user",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
@@ -46,6 +48,7 @@
   "devDependencies": {
     "autoprefixer": "^10.4.24",
     "postcss": "^8.5.6",
+    "supabase": "^2.84.4",
     "tailwindcss": "^3.4.19"
   }
 }

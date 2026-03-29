@@ -55,7 +55,7 @@ export async function createUser({ email, password, full_name, role, employee_id
     }
 
     if (!res.ok) {
-      const msg =
+      let msg =
         data?.error ||
         data?.message ||
         (res.status === 403 && "Admin role required") ||
@@ -63,11 +63,26 @@ export async function createUser({ email, password, full_name, role, employee_id
         (res.status === 404 && "Edge Function not deployed") ||
         (res.status >= 500 && "Server error — check Edge Function logs") ||
         `Request failed (${res.status})`;
+      if (
+        typeof msg === "string" &&
+        msg.includes("employee, manager, accountant, or admin") &&
+        !msg.includes("cashier")
+      ) {
+        msg += " Redeploy the create-user Edge Function (latest code allows cashier). See DEPLOY-ADD-USER.md.";
+      }
       return { data: null, error: new Error(msg) };
     }
 
     if (data?.error) {
-      return { data: null, error: new Error(data.error) };
+      let errMsg = data.error;
+      if (
+        typeof errMsg === "string" &&
+        errMsg.includes("employee, manager, accountant, or admin") &&
+        !errMsg.includes("cashier")
+      ) {
+        errMsg += " Redeploy the create-user Edge Function (latest code allows cashier). See DEPLOY-ADD-USER.md.";
+      }
+      return { data: null, error: new Error(errMsg) };
     }
 
     return { data: data || {}, error: null };

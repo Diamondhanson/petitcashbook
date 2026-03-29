@@ -207,6 +207,16 @@ function RequestDetailsDialog({
                       {STATUS_LABELS[status] ?? status}
                     </span>
                   </div>
+                  {r.reference_code && (
+                    <p className="font-mono text-sm font-semibold text-brand-dark">
+                      Reference: {r.reference_code}
+                      {status === "approved" && (
+                        <span className="mt-1 block text-xs font-normal text-accent sm:mt-0 sm:ml-2 sm:inline">
+                          Give this code to the cashier when collecting cash.
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <div className="text-sm text-slate-600">
                     <span className="font-medium text-brand-dark">{formatAmount(r.amount)}</span>
                     {" · "}

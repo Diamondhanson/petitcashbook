@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { Navigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer";
 import * as pettyCashApi from "../../utils/pettyCashApi";
+import { useAuth } from "../../context/AuthContext";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: "Helvetica" },
@@ -12,9 +14,14 @@ const styles = StyleSheet.create({
 });
 
 function ExportView() {
+  const { role } = useAuth();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (role === "cashier") {
+    return <Navigate to="/cashier" replace />;
+  }
 
   const exportExcel = async () => {
     setLoading(true);

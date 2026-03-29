@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import {
   BarChart,
   Bar,
@@ -9,6 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import * as pettyCashApi from "../../utils/pettyCashApi";
+import { useAuth } from "../../context/AuthContext";
 
 /** Deterministic variation so equal amounts per date become varied; keeps totals sensible. */
 function varyDateAmounts(items) {
@@ -30,6 +32,7 @@ function varyDateAmounts(items) {
 }
 
 function TrendsView() {
+  const { role } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,6 +45,10 @@ function TrendsView() {
       .catch(() => setData([]))
       .finally(() => setLoading(false));
   }, []);
+
+  if (role === "cashier") {
+    return <Navigate to="/cashier" replace />;
+  }
 
   if (loading) {
     return (

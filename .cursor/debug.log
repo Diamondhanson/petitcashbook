@@ -1,2 +1,0 @@
-{"location":"userApi.js:deleteUser","message":"Delete response","data":{"status":400,"ok":false,"parsedError":"Database error deleting user","rawText":"{\"error\":\"Database error deleting user\"}"},"hypothesisId":"A","timestamp":1772397888515}
-{"location":"userApi.js:deleteUser","message":"Delete response","data":{"status":200,"ok":true,"rawText":"{\"success\":true}"},"hypothesisId":"A","timestamp":1772398358045}

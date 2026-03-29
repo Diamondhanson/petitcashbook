@@ -88,7 +88,8 @@ function MyRequestsView() {
         />
       )}
       <p className="mb-6 text-accent">
-        View the status of your petty cash requests.
+        View the status of your petty cash requests. When a request is approved, give your{" "}
+        <strong>reference</strong> to the cashier when you collect cash.
       </p>
 
       <div className="rounded-xl border border-slate-300 bg-white shadow-md overflow-hidden">
@@ -100,6 +101,9 @@ function MyRequestsView() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
+                  Reference
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase text-accent">
                   Amount
@@ -126,6 +130,9 @@ function MyRequestsView() {
                 <tr key={r.id}>
                   <td className="px-6 py-4 text-sm text-accent">
                     {r.created_at?.slice(0, 10) ?? "—"}
+                  </td>
+                  <td className="px-6 py-4 font-mono text-sm text-brand-dark">
+                    {r.reference_code ?? "—"}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-brand-dark">
                     {formatAmount(r.amount)}

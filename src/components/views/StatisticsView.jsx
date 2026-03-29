@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import * as pettyCashApi from "../../utils/pettyCashApi";
+import { useAuth } from "../../context/AuthContext";
 
 const COLORS = [
   "#1e3a5f", // navy
@@ -33,6 +35,7 @@ function varyCategoryProportions(items) {
 }
 
 function StatisticsView() {
+  const { role } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,6 +48,10 @@ function StatisticsView() {
       .catch(() => setData([]))
       .finally(() => setLoading(false));
   }, []);
+
+  if (role === "cashier") {
+    return <Navigate to="/cashier" replace />;
+  }
 
   if (loading) {
     return (

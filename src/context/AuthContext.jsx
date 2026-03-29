@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId) => {
+  const fetchProfile = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -28,19 +28,20 @@ export function AuthProvider({ children }) {
       setProfile(null);
       return null;
     }
-  };
-
-  const handleSession = useCallback(async (session) => {
-    if (session?.user) {
-      setUser(session.user);
-      setLoading(false);
-      fetchProfile(session.user.id);
-    } else {
-      setUser(null);
-      setProfile(null);
-      setLoading(false);
-    }
   }, []);
+
+  const handleSession = useCallback(
+    async (session) => {
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+    },
+    [fetchProfile]
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -49,14 +50,18 @@ export function AuthProvider({ children }) {
       if (!mounted) return;
       supabase.auth
         .getSession()
-        .then(({ data: { session }, error }) => {
+        .then(async ({ data: { session }, error }) => {
           if (!mounted) return;
-          if (error) {
-            console.error("getSession error:", error);
-            setUser(null);
-            setProfile(null);
-          } else {
-            handleSession(session);
+          try {
+            if (error) {
+              console.error("getSession error:", error);
+              setUser(null);
+              setProfile(null);
+            } else {
+              await handleSession(session);
+            }
+          } finally {
+            if (mounted) setLoading(false);
           }
         })
         .catch((err) => {
@@ -88,7 +93,8 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     profile,
-    role: profile?.role ?? null,
+    role:
+      profile?.role != null ? String(profile.role).toLowerCase().trim() : null,
     employee_id: profile?.employee_id ?? null,
     loading
   };

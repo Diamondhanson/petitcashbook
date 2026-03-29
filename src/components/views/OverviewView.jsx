@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import * as pettyCashApi from "../../utils/pettyCashApi";
+import { useAuth } from "../../context/AuthContext";
 
 const DEFAULT_CARDS = [
   { label: "Total Balance", value: "FCFA 0", trend: null },
@@ -15,6 +17,7 @@ function formatAmount(n) {
 }
 
 function OverviewView() {
+  const { role } = useAuth();
   const [cards, setCards] = useState(DEFAULT_CARDS);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +61,10 @@ function OverviewView() {
     load();
     return () => { mounted = false; };
   }, []);
+
+  if (role === "cashier") {
+    return <Navigate to="/cashier" replace />;
+  }
 
   if (loading) {
     return (

@@ -56,9 +56,22 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "email, password, full_name, and role are required" }, 400);
     }
 
-    const validRoles = ["employee", "manager", "accountant", "admin"];
+    const validRoles = ["employee", "manager", "accountant", "admin", "cashier"];
     if (!validRoles.includes(role)) {
-      return jsonResponse({ error: "role must be employee, manager, accountant, or admin" }, 400);
+      return jsonResponse(
+        { error: "role must be employee, manager, accountant, admin, or cashier" },
+        400,
+      );
+    }
+
+    if (
+      (role === "employee" || role === "cashier") &&
+      (clientEmployeeId == null || typeof clientEmployeeId !== "number")
+    ) {
+      return jsonResponse(
+        { error: "employee_id is required for employee and cashier roles" },
+        400,
+      );
     }
 
     let nextEmployeeId: number;

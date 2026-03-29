@@ -32,6 +32,12 @@ supabase functions deploy delete-user --no-verify-jwt
 
 The service role key is automatically available to Edge Functions in your project.
 
+## Cashier role
+
+If you see **`role must be employee, manager, accountant, or admin`** when creating a user, the **create-user** function running in the cloud is an old build. Redeploy it (Step 2) after pulling the latest code. The current function allows **`cashier`** as well.
+
+You must also apply migration **`009_cashier_role_and_request_reference.sql`** (or ensure `profiles.role` allows `cashier`); otherwise profile updates may fail with a database check-constraint error instead.
+
 ## Step 3: Verify
 
 1. Log in as admin at your app

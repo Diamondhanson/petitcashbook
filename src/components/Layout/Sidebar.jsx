@@ -7,12 +7,13 @@ const NAV_ITEMS = [
   { path: "/submit-request", label: "Submit Request", roles: ["employee"] },
   { path: "/my-requests", label: "My Requests", roles: ["employee"] },
   { path: "/pending", label: "Pending Queue", roles: ["manager"] },
-  { path: "/disbursements", label: "Disbursements", roles: ["accountant", "admin"] },
+  { path: "/disbursements", label: "Paid out (admin)", roles: ["admin"] },
   { path: "/statistics", label: "Statistics", roles: ["accountant", "admin"] },
   { path: "/trends", label: "Trends", roles: ["accountant", "admin"] },
   { path: "/export", label: "Export", roles: ["accountant", "admin"] },
   { path: "/users", label: "User Management", roles: ["admin"] },
   { path: "/float", label: "Float Management", roles: ["admin"] },
+  { path: "/cashier", label: "Cash desk", roles: ["cashier"] },
 ];
 
 function Sidebar() {

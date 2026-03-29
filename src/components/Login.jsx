@@ -3,8 +3,8 @@ import { supabase } from "../utils/supabaseClient";
 
 /**
  * Login form - no sign-up. Users are created by admin.
- * Admin: email + password only.
- * Employee: User ID + email + password, verifies employee_id matches after auth.
+ * Admin: email + password only (managers, accountants, admins).
+ * Employee: User ID + email + password — verifies employee_id matches after auth (employees and cashiers).
  */
 function Login({ onLoginSuccess }) {
   const [mode, setMode] = useState("employee"); // "admin" | "employee"

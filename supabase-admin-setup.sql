@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
-  role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'manager', 'accountant', 'admin')),
+  role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'manager', 'accountant', 'admin', 'cashier')),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
