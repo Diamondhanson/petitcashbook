@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from "react";
-import { createUser, getNextEmployeeId } from "../utils/userApi";
+import { createUser, getUniqueRandomEmployeeId } from "../utils/userApi";
 
-const ROLES = [
-  { value: "employee", label: "Employee" },
-  { value: "manager", label: "Manager" },
-  { value: "accountant", label: "Accountant" },
-  { value: "admin", label: "Admin" },
+const ROLE_GROUPS = [
+  {
+    label: "Staff — sign in with Employee mode (User ID + email + password)",
+    options: [
+      { value: "employee", label: "Employee" },
+      { value: "cashier", label: "Cashier (cash desk)" },
+    ],
+  },
+  {
+    label: "Staff — sign in with Admin mode (email + password only)",
+    options: [
+      { value: "manager", label: "Manager" },
+      { value: "accountant", label: "Accountant" },
+      { value: "admin", label: "Admin" },
+    ],
+  },
 ];
 
 function AddUserModal({ isOpen, onClose, onSuccess }) {
@@ -28,11 +39,19 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
     setIdLoading(true);
     setEmployeeId(null);
 
-    getNextEmployeeId()
-      .then(({ data }) => {
-        setEmployeeId(data ?? 10000);
+    getUniqueRandomEmployeeId()
+      .then(({ data, error: idError }) => {
+        if (idError) {
+          setError("Failed to generate ID — try again");
+          setEmployeeId(null);
+        } else {
+          setEmployeeId(data);
+        }
       })
-      .catch(() => setEmployeeId(10000))
+      .catch(() => {
+        setError("Failed to generate ID — try again");
+        setEmployeeId(null);
+      })
       .finally(() => setIdLoading(false));
   }, [isOpen]);
 
@@ -46,6 +65,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
       password,
       full_name: fullName.trim(),
       role,
+      ...(employeeId != null && { employee_id: employeeId }),
     });
 
     setLoading(false);
@@ -69,11 +89,11 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
         tabIndex={0}
         aria-label="Close modal"
       />
-      <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-lg">
-        <div className="border-b border-slate-100 px-6 py-4">
+      <div className="relative w-full max-w-md rounded-xl border border-slate-300 bg-white shadow-xl">
+        <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-lg font-semibold text-brand-dark">Add new user</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Create a user account with email and password
+          <p className="mt-1 text-sm text-accent">
+            Create employees, cashiers, managers, accountants, or admins. Employees and cashiers get a User ID for login.
           </p>
         </div>
 
@@ -88,15 +108,15 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
             <label className="block text-sm font-medium text-brand-dark">
               User ID
             </label>
-            <div className="mt-1 flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-4 text-brand-dark">
+            <div className="mt-1 flex h-10 items-center rounded-lg border border-slate-300 bg-slate-100 px-4 text-brand-dark">
               {idLoading ? (
-                <span className="text-slate-500">Generating…</span>
+                <span className="text-accent">Generating…</span>
               ) : (
                 <span className="font-mono font-medium">{employeeId}</span>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-500">
-              Auto-generated 5-digit code
+            <p className="mt-1 text-xs text-accent">
+              Auto-generated 5-digit code. Required for <strong>Employee</strong> and <strong>Cashier</strong> login (Employee sign-in mode).
             </p>
           </div>
 
@@ -110,7 +130,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="user@company.com"
               disabled={loading}
             />
@@ -127,11 +147,11 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="••••••••"
               disabled={loading}
             />
-            <p className="mt-1 text-xs text-slate-500">Minimum 6 characters</p>
+            <p className="mt-1 text-xs text-accent">Minimum 6 characters</p>
           </div>
 
           <div>
@@ -144,7 +164,7 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark placeholder-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               placeholder="John Doe"
               disabled={loading}
             />
@@ -158,22 +178,31 @@ function AddUserModal({ isOpen, onClose, onSuccess }) {
               id="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-brand-dark focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-4 py-2.5 text-brand-dark focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
               disabled={loading}
             >
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
+              {ROLE_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
+            {role === "cashier" && (
+              <p className="mt-2 text-xs text-accent">
+                Cashiers use the <strong>Cash desk</strong> screen to verify request references and mark <strong>Paid out</strong>.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Cancel
             </button>

@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
-  role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'manager', 'accountant', 'admin')),
+  role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('employee', 'manager', 'accountant', 'admin', 'cashier')),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -152,3 +152,35 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_next_employee_id() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_unique_random_employee_id()
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller_role TEXT;
+  candidate_id INTEGER;
+  attempt INT := 0;
+  max_attempts INT := 10;
+BEGIN
+  SELECT role INTO caller_role FROM public.profiles WHERE id = auth.uid();
+  IF caller_role IS NULL OR caller_role != 'admin' THEN
+    RAISE EXCEPTION 'Forbidden: admin role required';
+  END IF;
+
+  LOOP
+    candidate_id := 10000 + floor(random() * 90000)::INT;
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE employee_id = candidate_id) THEN
+      RETURN candidate_id;
+    END IF;
+    attempt := attempt + 1;
+    IF attempt >= max_attempts THEN
+      RAISE EXCEPTION 'Could not generate unique ID after % attempts', max_attempts;
+    END IF;
+  END LOOP;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_unique_random_employee_id() TO authenticated;

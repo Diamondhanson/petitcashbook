@@ -1,7 +1,7 @@
-import { supabase } from "./supabaseClient";
+import { supabase, supabaseUrl } from "./supabaseClient";
 
 /**
- * Fetch the next employee ID (admin only). For preview in Add User form.
+ * Fetch the next employee ID (admin only). Sequential. For backward compatibility.
  */
 export async function getNextEmployeeId() {
   const { data, error } = await supabase.rpc("get_next_employee_id");
@@ -10,23 +10,143 @@ export async function getNextEmployeeId() {
 }
 
 /**
- * Create a new user (admin only). Calls the create-user Edge Function.
+ * Fetch a random unique employee ID (admin only). For Add User form.
  */
-export async function createUser({ email, password, full_name, role }) {
-  const { data, error } = await supabase.functions.invoke("create-user", {
-    body: { email, password, full_name, role },
-  });
+export async function getUniqueRandomEmployeeId() {
+  const { data, error } = await supabase.rpc("get_unique_random_employee_id");
+  if (error) return { data: null, error };
+  return { data: data ?? null, error: null };
+}
 
-  if (error) {
-    return {
-      data: null,
-      error: new Error(error.message || "Failed to create user"),
-    };
+/**
+ * Create a new user (admin only). Calls the create-user Edge Function.
+ * @param {Object} params
+ * @param {number} [params.employee_id] - Optional. Pre-generated 5-digit ID.
+ */
+export async function createUser({ email, password, full_name, role, employee_id }) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token || !supabaseUrl) {
+      return { data: null, error: new Error("Not authenticated") };
+    }
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        full_name,
+        role,
+        ...(employee_id != null && { employee_id }),
+      }),
+    });
+
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = {};
+    }
+
+    if (!res.ok) {
+      let msg =
+        data?.error ||
+        data?.message ||
+        (res.status === 403 && "Admin role required") ||
+        (res.status === 401 && "Session expired — please log in again") ||
+        (res.status === 404 && "Edge Function not deployed") ||
+        (res.status >= 500 && "Server error — check Edge Function logs") ||
+        `Request failed (${res.status})`;
+      if (
+        typeof msg === "string" &&
+        msg.includes("employee, manager, accountant, or admin") &&
+        !msg.includes("cashier")
+      ) {
+        msg += " Redeploy the create-user Edge Function (latest code allows cashier). See DEPLOY-ADD-USER.md.";
+      }
+      return { data: null, error: new Error(msg) };
+    }
+
+    if (data?.error) {
+      let errMsg = data.error;
+      if (
+        typeof errMsg === "string" &&
+        errMsg.includes("employee, manager, accountant, or admin") &&
+        !errMsg.includes("cashier")
+      ) {
+        errMsg += " Redeploy the create-user Edge Function (latest code allows cashier). See DEPLOY-ADD-USER.md.";
+      }
+      return { data: null, error: new Error(errMsg) };
+    }
+
+    return { data: data || {}, error: null };
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+      return { data: null, error: new Error("Network error — check your connection and CORS") };
+    }
+    return { data: null, error: new Error(msg) };
   }
+}
 
-  if (data?.error) {
-    return { data: null, error: new Error(data.error) };
+/**
+ * Delete a user (admin only). Calls the delete-user Edge Function.
+ * @param {string} userId - UUID of the user to delete
+ * @returns {Promise<{data: object|null, error: Error|null}>}
+ */
+export async function deleteUser(userId) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token || !supabaseUrl) {
+      return { data: null, error: new Error("Not authenticated") };
+    }
+
+    const res = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ user_id: userId }),
+    });
+
+    const text = await res.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = {};
+    }
+
+    if (!res.ok) {
+      const msg =
+        parsed?.error ||
+        parsed?.message ||
+        (res.status === 403 && "Admin role required") ||
+        (res.status === 401 && "Session expired — please log in again") ||
+        (res.status === 404 && "Edge Function not deployed") ||
+        (res.status >= 500 && "Server error — check Edge Function logs") ||
+        `Request failed (${res.status})`;
+      return { data: null, error: new Error(msg) };
+    }
+
+    if (parsed?.error) {
+      return { data: null, error: new Error(parsed.error) };
+    }
+
+    return { data: parsed || {}, error: null };
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+      return { data: null, error: new Error("Network error — check your connection and CORS") };
+    }
+    return { data: null, error: new Error(msg) };
   }
-
-  return { data: data || {}, error: null };
 }

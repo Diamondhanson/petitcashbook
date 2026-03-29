@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { supabase } from "../utils/supabaseClient";
 
 const AuthContext = createContext(null);
@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId) => {
+  const fetchProfile = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -28,61 +28,74 @@ export function AuthProvider({ children }) {
       setProfile(null);
       return null;
     }
-  };
+  }, []);
 
-  const handleSession = async (session) => {
-    if (session?.user) {
-      setUser(session.user);
-      setLoading(false);
-      fetchProfile(session.user.id);
-    } else {
-      setUser(null);
-      setProfile(null);
-      setLoading(false);
-    }
-  };
+  const handleSession = useCallback(
+    async (session) => {
+      if (session?.user) {
+        setUser(session.user);
+        await fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+    },
+    [fetchProfile]
+  );
 
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session }, error }) => {
-        if (!mounted) return;
-        if (error) {
-          console.error("getSession error:", error);
+    const applySession = () => {
+      if (!mounted) return;
+      supabase.auth
+        .getSession()
+        .then(async ({ data: { session }, error }) => {
+          if (!mounted) return;
+          try {
+            if (error) {
+              console.error("getSession error:", error);
+              setUser(null);
+              setProfile(null);
+            } else {
+              await handleSession(session);
+            }
+          } finally {
+            if (mounted) setLoading(false);
+          }
+        })
+        .catch((err) => {
+          if (!mounted) return;
+          console.error("Auth init error:", err);
           setUser(null);
           setProfile(null);
-        } else {
-          handleSession(session);
-        }
-      })
-      .catch((err) => {
-        if (!mounted) return;
-        console.error("Auth init error:", err);
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
-      });
+          setLoading(false);
+        });
+    };
+
+    applySession();
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(() => {
       if (!mounted) return;
       setLoading(true);
-      await handleSession(session);
+      // Use getSession() as source of truth so a stale null callback doesn't overwrite a valid session
+      applySession();
     });
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [handleSession]);
 
   const value = {
     user,
     profile,
-    role: profile?.role ?? null,
+    role:
+      profile?.role != null ? String(profile.role).toLowerCase().trim() : null,
+    employee_id: profile?.employee_id ?? null,
     loading
   };
 

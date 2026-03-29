@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function jsonResponse(body: object, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -13,10 +20,7 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Missing authorization header" }, 401);
     }
 
     const supabaseUser = createClient(
@@ -27,10 +31,7 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
     const supabaseAdmin = createClient(
@@ -46,39 +47,61 @@ Deno.serve(async (req) => {
       .single();
 
     if (profile?.role !== "admin") {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: admin role required" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "Forbidden: admin role required" }, 403);
     }
 
-    const { email, password, full_name, role } = await req.json();
+    const body = await req.json();
+    const { email, password, full_name, role, employee_id: clientEmployeeId } = body;
     if (!email || !password || !full_name || !role) {
-      return new Response(
-        JSON.stringify({ error: "email, password, full_name, and role are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: "email, password, full_name, and role are required" }, 400);
     }
 
-    const validRoles = ["employee", "manager", "accountant", "admin"];
+    const validRoles = ["employee", "manager", "accountant", "admin", "cashier"];
     if (!validRoles.includes(role)) {
-      return new Response(
-        JSON.stringify({ error: "role must be employee, manager, accountant, or admin" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonResponse(
+        { error: "role must be employee, manager, accountant, admin, or cashier" },
+        400,
       );
     }
 
-    const { data: maxRows } = await supabaseAdmin
-      .from("profiles")
-      .select("employee_id")
-      .not("employee_id", "is", null)
-      .order("employee_id", { ascending: false })
-      .limit(1);
+    if (
+      (role === "employee" || role === "cashier") &&
+      (clientEmployeeId == null || typeof clientEmployeeId !== "number")
+    ) {
+      return jsonResponse(
+        { error: "employee_id is required for employee and cashier roles" },
+        400,
+      );
+    }
 
-    const maxId = maxRows?.[0]?.employee_id;
-    const nextEmployeeId = maxId != null
-      ? Math.min(99999, maxId + 1)
-      : 10000;
+    let nextEmployeeId: number;
+
+    if (clientEmployeeId != null && typeof clientEmployeeId === "number") {
+      const id = Math.floor(clientEmployeeId);
+      if (id < 10000 || id > 99999) {
+        return jsonResponse({ error: "employee_id must be between 10000 and 99999" }, 400);
+      }
+      const { data: existing } = await supabaseAdmin
+        .from("profiles")
+        .select("employee_id")
+        .eq("employee_id", id)
+        .maybeSingle();
+      if (existing) {
+        return jsonResponse({ error: "Employee ID already in use" }, 400);
+      }
+      nextEmployeeId = id;
+    } else {
+      const { data: maxRows } = await supabaseAdmin
+        .from("profiles")
+        .select("employee_id")
+        .not("employee_id", "is", null)
+        .order("employee_id", { ascending: false })
+        .limit(1);
+      const maxId = maxRows?.[0]?.employee_id;
+      nextEmployeeId = maxId != null
+        ? Math.min(99999, maxId + 1)
+        : 10000;
+    }
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -88,10 +111,7 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      return new Response(
-        JSON.stringify({ error: createError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ error: createError.message }, 400);
     }
 
     const { error: updateError } = await supabaseAdmin
@@ -108,21 +128,15 @@ Deno.serve(async (req) => {
       console.error("Profile update error:", updateError);
     }
 
-    return new Response(
-      JSON.stringify({
-        user_id: newUser.user.id,
-        employee_id: nextEmployeeId,
-        email: newUser.user.email,
-        full_name,
-        role,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      user_id: newUser.user.id,
+      employee_id: nextEmployeeId,
+      email: newUser.user.email,
+      full_name,
+      role,
+    });
   } catch (err) {
     console.error(err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: String(err?.message ?? err ?? "Internal server error") }, 500);
   }
 });
