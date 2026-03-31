@@ -1,6 +1,6 @@
-# Petty Cash Management System — Technical Documentation (HND Defense)
+# PETTY SYNC — Technical Documentation (HND Defense)
 
-This document provides a comprehensive technical overview of the Petty Cash Management System (Petit Cash Book). It is written for both non-technical readers and a specialized jury, with high-level explanations and detailed technical references where appropriate.
+This document provides a comprehensive technical overview of **PETTY SYNC**, a web-based petty cash management application. It is written for both non-technical readers and a specialized jury, with high-level explanations and detailed technical references where appropriate.
 
 ---
 
@@ -8,15 +8,16 @@ This document provides a comprehensive technical overview of the Petty Cash Mana
 
 ### 1.1 What Is It?
 
-The **Petty Cash Management System** is a web-based application for managing petty cash in **FCFA** (Franc CFA). It allows staff to submit requests for small expenses, managers to approve or reject them, **cashiers** to verify a human-readable **reference code** and mark cash as **paid out** at the desk, and **admins** to override payouts and manage the float—all in one digital platform with role-based access.
+**PETTY SYNC** is a web-based application for managing petty cash in **FCFA** (Franc CFA). It enforces a **three-step payout**: **managers or accountants** (or admins) approve pending requests, **accountants or admins** then release approved requests to the cash desk (`released`), then **cashiers** verify the **reference code** and mark **paid out** (`disbursed`, which decrements the float). **Admins** additionally manage users and the float.
 
 - **Employees** submit requests (amount, purpose, category, optional receipt). Each request receives a unique **reference code** (e.g. `PC-100042`) for identification at payout.
 - **Managers** review pending requests and can approve, reject, or ask for clarification.
-- **Cashiers** (created by admin with an **employee code**) use the **Cash desk** screen: current balance, petty cash book history, and approved requests; they confirm the reference and click **Paid out** (database status `disbursed`).
-- **Accountants** use Statistics, Trends, and Export; they do **not** mark paid out (that action is restricted to cashier and admin in the hardened `update_requests_status` RPC).
-- **Admins** manage the cash float, users, roles, and may use **Paid out (admin)** for exceptional overrides.
+- **Accountants or admins** use **Disbursements**: **To disburse** moves `approved` → `released` so the request appears on the cash desk; **History** shows rows awaiting the cashier and paid-out rows.
+- **Cashiers** (created by admin with an **employee code**) use the **Cash desk** only for requests in **`released`** status; they confirm the reference and click **Paid out** (`disbursed`).
+- **Accountants** share **Pending Queue** with managers (approve, reject, request clarification), plus the same reporting and **Disbursements** as admins except **User Management** and **Float Management**.
+- **Admins** have accountant capabilities plus user/role management, float top-up, and may mark **paid out** from **`released`** when needed (same RPC as cashier).
 
-The system provides an overview dashboard, statistics and trends on disbursed spending, and export of disbursement data to Excel or PDF.
+PETTY SYNC provides an overview dashboard, statistics and trends on disbursed spending, and export of disbursement data to Excel or PDF.
 
 ### 1.2 The Problem
 
@@ -32,10 +33,10 @@ These pain points motivated a single, digital solution that enforces workflow an
 
 ### 1.3 The Solution
 
-The Petty Cash Management System addresses these issues by:
+PETTY SYNC addresses these issues by:
 
 - **Centralizing requests** — All requests are created and stored in a database, with optional receipt attachments stored securely.
-- **Enforcing a clear workflow** — A request moves through defined states: pending → (optional clarification) → approved or rejected → disbursed. Only authorized roles can perform each step.
+- **Enforcing a clear workflow** — A request moves through defined states: pending → (optional clarification) → approved or rejected → **released** (finance) → **disbursed** (cash paid out). Only authorized roles can perform each step.
 - **Maintaining an audit trail** — Approvals, rejections, and clarifications are recorded in a timeline and audit table, so every decision is attributable and reviewable.
 - **Tracking the cash float** — Admins see the current balance and can top it up; disbursements automatically decrement the float so the system reflects real cash movement.
 - **Providing role-specific dashboards** — Overview, statistics, trends, and export give visibility into spending and history, with access limited by role.
@@ -90,7 +91,7 @@ The project uses **React with Create React App and JavaScript** (not Next.js or 
 
 **Backend / Supabase:**
 
-- **`supabase/migrations/`** — SQL migrations: profiles, cash_float, RLS, RPCs (e.g. `get_cash_float`, `update_cash_float`, `list_float_topups`, `get_admin_cashbook_history`, `list_profiles`, `update_user_role`, `update_requests_status`), `reference_code` on requests, **cashier** role and RPC hardening, request_timeline, triggers (e.g. `on_cash_disbursement`).
+- **`supabase/migrations/`** — SQL migrations: profiles, cash_float, RLS, RPCs (e.g. `get_cash_float`, `update_cash_float`, `list_float_topups`, `list_admin_closed_requests`, `list_profiles`, `update_user_role`, `update_requests_status`), `reference_code`, status **`released`** (two-step payout, migration `012_released_status_disburse_flow.sql`), accountant on **Pending Queue** (`013_accountant_pending_queue.sql`), **cashier** role and RPC hardening, request_timeline, triggers (e.g. `on_cash_disbursement`).
 - **`supabase/functions/`** — Edge Functions: `create-user`, `delete-user` (admin-only, called with JWT).
 
 **Data flow (high level):**
@@ -125,10 +126,10 @@ flowchart LR
 | Role | Permissions | Main routes |
 |------|-------------|-------------|
 | **Employee** | Submit requests; view and manage own requests (including providing clarification); view Overview (balance/pending may show 0 if RLS restricts). | Overview, Submit Request, My Requests |
-| **Cashier** | **Cash desk** only (`CashierView`, route `/cashier`): three tabs — **Pay out** (balance, reference lookup, approved queue, **Paid out**), **Top up** float (same RPC as admin, audited), **Cash book** (read-only history). No Overview, Statistics, or Export; those routes redirect to `/cashier`. Logs in with **Employee** mode (User ID + email + password). | `/cashier` |
+| **Cashier** | **Cash desk** only (`CashierView`, route `/cashier`): three tabs — **Pay out** (balance, reference lookup, **`released`** queue, **Paid out** → `disbursed`), **Top up** float (same RPC as admin, audited), **Activity log** (read-only history). No Overview, Statistics, or Export; those routes redirect to `/cashier`. Logs in with **Employee** mode (User ID + email + password). | `/cashier` |
 | **Manager** | View pending and clarification_requested requests; approve, reject, or request clarification; view Overview. | Overview, Pending Queue |
-| **Accountant** | Statistics, Trends, Export; Overview; read cash float via RPC. Does **not** mark paid out. | Overview, Statistics, Trends, Export |
-| **Admin** | Accountant capabilities; **Paid out (admin)** override; list/create/delete users; change roles; float top-up and petty cash book. | Overview, Paid out (admin), Statistics, Trends, Export, User Management, Float Management |
+| **Accountant** | **Pending Queue** (same as manager: approve, reject, clarification); **Disbursements** (release `approved` → `released`; history); Overview, Statistics, Trends, Export; read cash float via RPC. Does **not** mark `disbursed` (cashier/admin only). No User or Float management. | Overview, Pending Queue, Disbursements, Statistics, Trends, Export |
+| **Admin** | Accountant capabilities; list/create/delete users; change roles; float top-up and **activity log**; may mark **paid out** (`disbursed`) from **`released`** like a cashier. | Overview, Disbursements, Statistics, Trends, Export, User Management, Float Management |
 
 Route visibility is defined in the sidebar by filtering items by `role`; views that are role-specific (e.g. Submit Request, Float Management) redirect to `/` if the user’s role is not allowed.
 
@@ -142,6 +143,7 @@ flowchart TD
   ClarResp[Employee provides clarification]
   Approve[Manager approves]
   Reject[Manager rejects]
+  Release[Accountant or admin releases]
   PaidOut[Cashier or admin marks paid out]
   Create --> Pending
   Pending --> ClarReq
@@ -149,23 +151,26 @@ flowchart TD
   ClarResp --> Pending
   Pending --> Approve
   Pending --> Reject
-  Approve --> PaidOut
+  Approve --> Release
+  Release --> PaidOut
 ```
 
 1. **Creation:** Employee submits the form in SubmitRequestView. `createRequest()` in pettyCashApi inserts a row into `requests` with status `pending` and optionally uploads a receipt to the `receipts` storage bucket. A **BEFORE INSERT** trigger assigns a unique **`reference_code`** (e.g. `PC-100042`) for window verification.
 
-2. **Manager actions:** In PendingQueueView or RequestDetailsDialog, the manager can:
+2. **Manager or accountant actions:** In PendingQueueView or RequestDetailsDialog, a **manager**, **accountant**, or **admin** can:
    - **Approve** — `updateRequestStatus(id, { status: 'approved' })` calls the `update_requests_status` RPC; the app also inserts into `audit_trail` and `request_timeline`.
    - **Reject** — Same RPC with `status: 'rejected'` and required `rejection_reason`; again with audit and timeline inserts.
    - **Request clarification** — `requestClarification()` inserts a timeline event and sets status to `clarification_requested`. The employee then uses My Requests to respond via `provideClarification()` (timeline event + optional attachments); status returns to `pending`.
 
-3. **Paid out:** In **CashierView** (or **DisbursementsView** for admin override), the user marks an approved request via `updateRequestStatus(id, { status: 'disbursed' })`. The **`update_requests_status`** RPC allows **`disbursed`** only when the caller is **cashier** or **admin** and the row is **`approved`**. A trigger `on_cash_disbursement` decrements `cash_float.current_balance` by the request amount.
+3. **Release for pickup:** An **accountant** or **admin** uses **Disbursements → To disburse** and calls `updateRequestStatus(id, { status: 'released' })`. The RPC allows **`released`** only from **`approved`**. The cash desk does not show the request until this step completes.
 
-4. **Audit:** Approve and reject actions write to `audit_trail` and `request_timeline`. The timeline is used by RequestDetailsDialog to show the full history of the request.
+4. **Paid out:** In **CashierView**, the cashier marks a **`released`** request via `updateRequestStatus(id, { status: 'disbursed' })`. An **admin** may do the same from **`released`** (e.g. override). The RPC allows **`disbursed`** only when the caller is **cashier** or **admin** and the row is **`released`**. The trigger `on_cash_disbursement` decrements `cash_float.current_balance` by the request amount.
+
+5. **Audit:** Approve, reject, **released**, and **disbursed** actions write to `audit_trail` and `request_timeline` (where configured). The timeline is used by RequestDetailsDialog to show the full history of the request.
 
 ### 3.4 Cash desk panel and flow from request to paid out
 
-The **cashier** role exists so that physical cash payout is a separate, controlled step after managerial approval. The UI is **`CashierView`** (“Cash desk”), reachable only at **`/cashier`** and only when `profile.role === 'cashier'`. Other views redirect cashiers to `/cashier` so they stay on the desk workflow.
+The **cashier** role handles **physical cash** only after **finance** has set status to **`released`**. The UI is **`CashierView`** (“Cash desk”), reachable only at **`/cashier`** when `profile.role === 'cashier'`. Other views redirect cashiers to `/cashier`.
 
 **End-to-end flow (happy path):**
 
@@ -174,29 +179,29 @@ sequenceDiagram
   participant E as Employee
   participant DB as Database
   participant M as Manager
+  participant A as Accountant or admin
   participant C as Cashier (Cash desk)
 
   E->>DB: Submit request (status pending)
   DB->>E: reference_code e.g. PC-100042
   M->>DB: Approve (update_requests_status)
   DB->>DB: status approved
+  A->>DB: Disburse (released)
+  DB->>DB: status released
   E->>C: At desk: states reference / identity
   C->>DB: Verify (lookup or list)
   C->>DB: Paid out (disbursed)
   DB->>DB: Decrement cash_float
 ```
 
-1. **Request and reference** — The employee submits a request in **Submit Request**. A trigger assigns a unique **`reference_code`** (e.g. `PC-100042`). The employee sees this code in **My Requests** and in **Request details** (“Give this code to the cashier when collecting cash”).
-2. **Approval** — A **manager** (or **admin** acting as approver) moves the request to **`approved`** via `update_requests_status`. Until then, it must not be paid at the desk.
-3. **Cash desk — Pay out tab** — The cashier opens **Cash desk** and sees the **current float** (`get_cash_float`). Approved, not-yet-paid requests appear in **Approved — ready to pay out** (`getApprovedRequests`). The cashier can:
-   - **Look up by reference** — Enter the code; `getApprovedRequestByReferenceCode` returns the row only if it is still **approved** (so stale or wrong codes do not match paid-out requests).
-   - **Filter the table** — Narrow the list by partial reference.
-   - **Paid out** — After verifying the person and amount, the cashier calls **`updateRequestStatus(id, { status: 'disbursed' })`**. The RPC allows **`disbursed`** only for **cashier** or **admin** when the row is **approved**. The trigger **`on_cash_disbursement`** subtracts the request amount from **`cash_float.current_balance`** (subject to the non-negative balance constraint).
-4. **Cash desk — Top up tab** — If the organization allows it, **cashier** (and **admin**) can add cash to the float via **`update_cash_float`**; **`list_float_topups`** shows recent top-ups with performer and balance after.
-5. **Cash desk — Cash book tab** — Read-only combined history: the app’s **`getAdminCashbookHistory()`** merges **`list_float_topups`** and **`list_admin_closed_requests`** (disbursed and rejected rows) into one sorted ledger for desk reconciliation.
-6. **Admin override** — **DisbursementsView** (“Paid out (admin)”) lets an **admin** mark **approved** requests as **disbursed** when a cashier action is not used; the same RPC and trigger apply.
+1. **Request and reference** — The employee submits a request in **Submit Request**. A trigger assigns a unique **`reference_code`**. The employee sees status messaging in **My Requests** / **Request details**: after **`released`**, they give the code to the cashier; while only **`approved`**, finance must disburse first.
+2. **Approval** — A **manager**, **accountant**, or **admin** sets **`approved`** via `update_requests_status`.
+3. **Disbursements (accountant/admin)** — **Disbursements → To disburse** lists **`approved`** rows. **Disburse** calls **`updateRequestStatus(id, { status: 'released' })`**. **History** shows **Awaiting cashier** (`released`) and **Paid out** (`disbursed`).
+4. **Cash desk — Pay out tab** — The cashier sees **`released`** rows via **`getReleasedForPayoutRequests()`**. **Look up by reference** uses **`getReleasedRequestByReferenceCode`** (only **`released`** qualifies). **Paid out** calls **`disbursed`**; the trigger decrements **`cash_float`**.
+5. **Cash desk — Top up / Activity log** — Unchanged (float top-up RPCs; **`getAdminCashbookHistory()`** for the ledger).
+6. **Admin** — May mark **`disbursed`** from **`released`** like a cashier; cannot skip **`released`** via the RPC.
 
-This split matches real operations: **managers** authorize spend; **cashiers** confirm identity/reference and release cash; **admins** retain override and user/float governance.
+This split matches operations: **managers** authorize spend; **finance** releases to the desk; **cashiers** hand over cash; **admins** retain user/float governance and optional paid-out override from **`released`**.
 
 ---
 
@@ -223,23 +228,24 @@ if (isNaN(amt) || amt <= 0) {
 ```
 - **Listing and filtering:**
   - Employee: `getMyRequests()` — requests where `requester_id` equals current user.
-  - Manager: `getPendingRequests()` — status in `pending`, `clarification_requested`, with requester profile.
-  - Cashier/Admin: `getApprovedRequests()` for the approved queue; `getApprovedRequestByReferenceCode(code)` for desk verification.
-  - Accountant/Admin: `getDisbursedRequestsForExport({ startDate, endDate })` for export.
-- **Status changes:** All status updates go through the `update_requests_status` RPC, which enforces **manager/admin** for **approve/reject** (with valid prior state and `p_manager_id = auth.uid()`) and **cashier/admin** for **`disbursed`**. Rejection requires a non-empty `rejection_reason` (enforced in the API layer). Clarification uses `requestClarification()` and `provideClarification()`. The client calls the RPC like this:
+  - Manager/Accountant/Admin (pending queue): `getPendingRequests()` — status in `pending`, `clarification_requested`, with requester profile.
+  - Accountant/Admin (to disburse): `getAwaitingDisbursementRequests()` — `status = 'approved'`.
+  - Cashier desk: `getReleasedForPayoutRequests()` — `status = 'released'`; `getReleasedRequestByReferenceCode(code)` for desk verification.
+  - History (Disbursements): `getReleasedForPayoutRequests()` and `getDisbursedRequestsRecent()`; export still uses `getDisbursedRequestsForExport({ startDate, endDate })`.
+- **Status changes:** All status updates go through the `update_requests_status` RPC, which enforces **manager/accountant/admin** for **approve/reject**, **accountant/admin** for **`released`** (from **`approved`**), and **cashier/admin** for **`disbursed`** (from **`released`** only). Rejection requires a non-empty `rejection_reason` (enforced in the API layer). Clarification uses `requestClarification()` and `provideClarification()`. The client calls the RPC like this:
 
 ```javascript
 const { data: rawRows, error } = await supabase.rpc("update_requests_status", {
   p_request_id: requestId,
-  p_status: status,        // 'approved' | 'rejected' | 'disbursed'
-  p_manager_id: user.id,   // for approve/reject
+  p_status: status,        // 'approved' | 'rejected' | 'released' | 'disbursed'
+  p_manager_id: user.id,   // for approve/reject only
   p_rejection_reason: rejection_reason?.trim() ?? null
 });
 ```
 
 ### 4.3 Reporting and Analytics
 
-- **Overview:** Fetches (in parallel) cash float (`get_cash_float`), pending requests (`getPendingRequests`), and analytics for the current month (`getAnalyticsData`). It displays three cards: Total Balance, Pending (sum of amounts), Disbursed (month). “Recent Activity” is currently driven by approved requests; the design can be extended to show recent disbursements and rejections by role.
+- **Overview:** Fetches (in parallel) cash float (`get_cash_float`), pending requests (`getPendingRequests`), and analytics for the current month (`getAnalyticsData`). It displays three cards: Total Balance, Pending (sum of amounts), Disbursed (month). The **Awaiting cash pickup** section lists **`released`** requests (finance has released them; cashier has not yet marked paid out).
 - **Statistics:** Uses `getAnalyticsData()` (disbursed requests only), aggregates by category, and renders a Recharts PieChart. A helper adjusts proportions for equal values so segments are visually distinct.
 - **Trends:** Same analytics source, aggregated by date, rendered as a Recharts BarChart.
 - **Export:** User selects optional date range; the app calls `getDisbursedRequestsForExport()`, then generates either an Excel file (xlsx) or a PDF (via @react-pdf/renderer) for download.
@@ -247,7 +253,7 @@ const { data: rawRows, error } = await supabase.rpc("update_requests_status", {
 ### 4.4 History and Audit
 
 - **Request timeline:** `getRequestTimeline(requestId)` returns the request plus events from the `request_timeline` table. The “created” event is derived from the request row; clarification and approval/rejection events come from the table. The list is sorted by time and shown in RequestDetailsDialog. RLS on `request_timeline` restricts who can read or insert by role and relationship to the request.
-- **Audit trail:** On approve or reject, the app inserts a row into `audit_trail` (request_id, action, performed_by, details). This supports accountability; a dedicated audit report screen could be added later.
+- **Audit trail:** On approve, reject, **released**, and **disbursed**, the app inserts into `audit_trail` (request_id, action, performed_by, details) where implemented. This supports accountability; a dedicated audit report screen could be added later.
 
 ### 4.5 Balance and Float
 
@@ -255,7 +261,7 @@ const { data: rawRows, error } = await supabase.rpc("update_requests_status", {
   - **Read:** `get_cash_float` — allowed for admin, accountant, and **cashier**; returns current balance.
   - **Top-up:** `update_cash_float(amount_add)` — **admin or cashier**; adds to `current_balance` and writes the same audit trail as an admin top-up.
   - **Top-up history:** `list_float_topups` — **admin or cashier**; supports the Cash desk “Recent top-ups” table.
-- **Disbursement:** When a request’s status is updated to `disbursed`, the trigger `on_cash_disbursement` runs and subtracts the request amount from `cash_float.current_balance`. The `cash_float` table has a check constraint so balance cannot go negative; business logic could additionally prevent disbursement when balance would be insufficient (e.g. inside an RPC).
+- **Disbursement (cash out of float):** When a request’s status is updated to **`disbursed`** from **`released`**, the trigger `on_cash_disbursement` runs and subtracts the request amount from `cash_float.current_balance`. The intermediate **`released`** step does not change the float. The `cash_float` table has a check constraint so balance cannot go negative; business logic could additionally prevent payout when balance would be insufficient (e.g. inside an RPC).
 
 ### 4.6 User Management (Admin)
 
@@ -329,7 +335,7 @@ const { data: rawRows, error } = await supabase.rpc("update_requests_status", {
 
 ### 6.1 Summary
 
-The Petty Cash Management System delivers a digital workflow for petty cash in FCFA: employees submit requests (each with a **reference code** for the desk), managers approve or reject (with an optional clarification loop), **cashiers** run the **Cash desk** to verify references and mark **paid out** (with optional float top-up and cash book history), and **accountants** focus on statistics, trends, and export without disbursing cash. **Admins** retain user and float management plus **Paid out (admin)** override. Roles (employee, manager, accountant, admin, **cashier**) are enforced in the UI and in the backend via RLS and RPCs. The system maintains a cash float, an audit trail and request timeline, and provides overview, statistics, trends, and export. It is implemented with React (Create React App, JavaScript) and Supabase and is suitable as an HND project and as a base for production hardening (e.g. additional validation, TypeScript, real-time updates).
+**PETTY SYNC** delivers a digital workflow for petty cash in FCFA: employees submit requests (each with a **reference code**); **managers or accountants** (or admins) handle the **Pending Queue** (approve, reject, clarification); **accountants and admins** **release** approved requests (**`released`**) via **Disbursements**; **cashiers** (or **admins**) mark **paid out** (**`disbursed`**, decrementing the float). Accountants share Pending Queue and reporting with managers/admins but not User or Float management. **Cashiers** use the cash desk (float top-up and **activity log** included). Roles (employee, manager, accountant, admin, **cashier**) are enforced in the UI and in the backend via RLS and RPCs. The app maintains a cash float, an audit trail and request timeline, and provides overview, statistics, trends, and export. It is implemented with React (Create React App, JavaScript) and Supabase and is suitable as an HND project and as a base for production hardening (e.g. additional validation, TypeScript, real-time updates).
 
 ### 6.2 Future Improvements
 

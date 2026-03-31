@@ -12,14 +12,16 @@ const STATUS_LABELS = {
   pending: "Pending",
   clarification_requested: "Awaiting clarification",
   approved: "Approved",
+  released: "Ready for pickup",
   rejected: "Rejected",
-  disbursed: "Disbursed"
+  disbursed: "Paid out"
 };
 
 const STATUS_CLASSES = {
   pending: "bg-amber-100 text-amber-800",
   clarification_requested: "bg-orange-100 text-orange-800",
   approved: "bg-emerald-100 text-emerald-800",
+  released: "bg-sky-100 text-sky-800",
   rejected: "bg-red-100 text-red-800",
   disbursed: "bg-slate-100 text-slate-700"
 };
@@ -29,7 +31,9 @@ const EVENT_LABELS = {
   clarification_requested: "Clarification requested",
   clarification_provided: "Clarification provided",
   approved: "Approved",
-  rejected: "Rejected"
+  rejected: "Rejected",
+  released: "Released for pickup (finance)",
+  disbursed: "Paid out (cashier)"
 };
 
 function formatDate(iso) {
@@ -147,13 +151,14 @@ function RequestDetailsDialog({
 
   const r = data?.request;
   const timeline = data?.timeline ?? [];
-  const isManager = role === "manager" || role === "admin";
+  const canModerateQueue =
+    role === "manager" || role === "accountant" || role === "admin";
   const status = r?.status ?? "";
   const canApproveRejectClarify =
-    isManager && (status === "pending" || status === "clarification_requested");
+    canModerateQueue && (status === "pending" || status === "clarification_requested");
   // Show reply area for employees whenever request is not yet resolved (pending or awaiting clarification).
   const showReplyAreaForEmployee =
-    !isManager &&
+    !canModerateQueue &&
     (status === "pending" || status === "clarification_requested");
 
   return (
@@ -211,6 +216,11 @@ function RequestDetailsDialog({
                     <p className="font-mono text-sm font-semibold text-brand-dark">
                       Reference: {r.reference_code}
                       {status === "approved" && (
+                        <span className="mt-1 block text-xs font-normal text-accent sm:mt-0 sm:ml-2 sm:inline">
+                          Awaiting finance disbursement before cash pickup.
+                        </span>
+                      )}
+                      {status === "released" && (
                         <span className="mt-1 block text-xs font-normal text-accent sm:mt-0 sm:ml-2 sm:inline">
                           Give this code to the cashier when collecting cash.
                         </span>

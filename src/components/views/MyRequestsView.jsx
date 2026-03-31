@@ -17,8 +17,9 @@ function statusLabel(s) {
     pending: "Pending",
     clarification_requested: "Clarification needed",
     approved: "Approved",
+    released: "Ready for pickup",
     rejected: "Rejected",
-    disbursed: "Disbursed"
+    disbursed: "Paid out"
   };
   return map[s] ?? s;
 }
@@ -28,6 +29,7 @@ function statusClass(s) {
     pending: "bg-amber-100 text-amber-800",
     clarification_requested: "bg-orange-100 text-orange-800",
     approved: "bg-emerald-100 text-emerald-800",
+    released: "bg-sky-100 text-sky-800",
     rejected: "bg-red-100 text-red-800",
     disbursed: "bg-slate-100 text-slate-700"
   };
@@ -88,8 +90,9 @@ function MyRequestsView() {
         />
       )}
       <p className="mb-6 text-accent">
-        View the status of your petty cash requests. When a request is approved, give your{" "}
-        <strong>reference</strong> to the cashier when you collect cash.
+        View the status of your PETTY SYNC requests. After finance releases your request (status{" "}
+        <strong>Ready for pickup</strong>), give your <strong>reference</strong> to the cashier when you
+        collect cash.
       </p>
 
       <div className="rounded-xl border border-slate-300 bg-white shadow-md overflow-hidden">

@@ -65,7 +65,7 @@ function SubmitRequestView() {
     <div className="mx-auto max-w-2xl">
       <h2 className="mb-6 text-lg font-semibold text-brand-dark">Submit Request</h2>
       <p className="mb-6 text-accent">
-        Submit a petty cash request. Attach a receipt if available.
+        Submit a PETTY SYNC request. Attach a receipt if available.
       </p>
 
       {error && (

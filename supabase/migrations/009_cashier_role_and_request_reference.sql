@@ -1,4 +1,4 @@
--- Cashier role, human-readable request reference_code, RPC hardening, cashier read access to float + cashbook history
+-- Cashier role, human-readable request reference_code, RPC hardening, cashier read access to float + activity history RPCs
 
 -- -----------------------------------------------------------------------------
 -- 0. If profiles.role uses enum public.user_role, add label 'cashier' first.
@@ -119,7 +119,7 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 4. Cash book history RPCs: admin or cashier (read-only lists)
+-- 4. Activity history RPCs: admin or cashier (read-only lists)
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.list_float_topups()
 RETURNS TABLE (

@@ -1,5 +1,5 @@
 -- =============================================================================
--- Petit Cash Book - Admin User Setup
+-- PETTY SYNC - Admin User Setup
 -- Run this in Supabase SQL Editor (Dashboard > SQL Editor)
 -- =============================================================================
 
@@ -63,7 +63,7 @@ CREATE TRIGGER on_auth_user_created
 DO $$
 DECLARE
   new_user_id UUID;
-  user_email TEXT := 'admin@petitcashbook.com';  -- CHANGE THIS
+  user_email TEXT := 'admin@pettysync.com';  -- CHANGE THIS
   user_password TEXT := 'ChangeThisPassword123!';  -- CHANGE THIS
   user_full_name TEXT := 'Administrator';
   instance_id UUID;

@@ -101,7 +101,7 @@ function PendingQueueView() {
     load();
   };
 
-  if (role !== "manager" && role !== "admin") {
+  if (role !== "manager" && role !== "accountant" && role !== "admin") {
     return <Navigate to="/" replace />;
   }
 
@@ -117,7 +117,8 @@ function PendingQueueView() {
     <div className="mx-auto max-w-6xl">
       <h2 className="mb-6 text-lg font-semibold text-brand-dark">Pending Queue</h2>
       <p className="mb-6 text-accent">
-        Approve or reject petty cash requests. Rejections require a reason and are recorded in the audit trail.
+        Approve, reject, or request clarification on PETTY SYNC requests. Rejections require a reason and are
+        recorded in the audit trail.
       </p>
 
       {detailsRequestId && (
