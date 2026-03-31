@@ -56,7 +56,7 @@ function Dashboard({
         <header className="mb-12 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-brand-dark">
-              Cash Book
+             PETTY SYNC
             </h1>
             <p className="mt-2 text-slate-600">
               Your financial overview at a glance

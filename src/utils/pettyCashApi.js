@@ -55,7 +55,7 @@ async function uploadClarificationFile(file, requestId) {
 }
 
 /**
- * Create a petty cash request (employee function).
+ * Create a PETTY SYNC request (employee function).
  * @param {Object} params
  * @param {number} params.amount - Request amount in FCFA
  * @param {string} params.purpose - Reason for the request
@@ -118,11 +118,11 @@ export async function createRequest({
 }
 
 /**
- * Update request status (manager approval/rejection, or cashier/admin paid out).
- * For managers: creates audit_trail record on approval/rejection.
+ * Update request status (manager approve/reject, accountant/admin release, cashier/admin paid out).
+ * Writes audit_trail + request_timeline where applicable.
  * @param {string} requestId - Request UUID
  * @param {Object} updates
- * @param {'approved'|'rejected'|'disbursed'} updates.status
+ * @param {'approved'|'rejected'|'released'|'disbursed'} updates.status
  * @param {string} [updates.rejection_reason] - Required when status is 'rejected'
  * @param {string} [updates.manager_comment] - Optional comment
  * @returns {Promise<{data: object|null, error: Error|null}>}
@@ -146,7 +146,7 @@ export async function updateRequestStatus(requestId, updates) {
     return { data: null, error: authError || new Error("Not authenticated") };
   }
 
-  const validStatuses = ["approved", "rejected", "disbursed"];
+  const validStatuses = ["approved", "rejected", "released", "disbursed"];
   if (!validStatuses.includes(status)) {
     return {
       data: null,
@@ -181,7 +181,30 @@ export async function updateRequestStatus(requestId, updates) {
       ? [rawRows]
       : [];
 
-  if (error) return { data: null, error };
+  if (error) {
+    const msg = String(error.message || "");
+    if (
+      status === "released" &&
+      /invalid status/i.test(msg) &&
+      /released/i.test(msg)
+    ) {
+      return {
+        data: null,
+        error: new Error(
+          "Your Supabase database does not have the latest payout RPC yet. Open the SQL Editor and run the full script in supabase/migrations/012_released_status_disburse_flow.sql (adds status ‘released’ and updates update_requests_status)."
+        )
+      };
+    }
+    if (status === "disbursed" && /invalid status/i.test(msg) && /disbursed/i.test(msg)) {
+      return {
+        data: null,
+        error: new Error(
+          "Your Supabase database does not have the latest payout RPC yet. Run supabase/migrations/012_released_status_disburse_flow.sql in the SQL Editor."
+        )
+      };
+    }
+    return { data: null, error };
+  }
 
   const request = rows.length > 0 ? rows[0] : null;
   if (!request) return { data: null, error: new Error("Request not found or not updated") };
@@ -214,6 +237,42 @@ export async function updateRequestStatus(requestId, updates) {
     if (timelineError) {
       console.error("Timeline insert failed:", timelineError);
     }
+  }
+
+  if (status === "released") {
+    const { error: auditError } = await supabase.from("audit_trail").insert({
+      request_id: requestId,
+      action: "released",
+      performed_by: user.id,
+      details: {}
+    });
+    if (auditError) console.error("Audit trail insert failed:", auditError);
+
+    const { error: timelineError } = await supabase.from("request_timeline").insert({
+      request_id: requestId,
+      event_type: "released",
+      performed_by: user.id,
+      payload: {}
+    });
+    if (timelineError) console.error("Timeline insert failed:", timelineError);
+  }
+
+  if (status === "disbursed") {
+    const { error: auditError } = await supabase.from("audit_trail").insert({
+      request_id: requestId,
+      action: "disbursed",
+      performed_by: user.id,
+      details: {}
+    });
+    if (auditError) console.error("Audit trail insert failed:", auditError);
+
+    const { error: timelineError } = await supabase.from("request_timeline").insert({
+      request_id: requestId,
+      event_type: "disbursed",
+      performed_by: user.id,
+      payload: {}
+    });
+    if (timelineError) console.error("Timeline insert failed:", timelineError);
   }
 
   return { data: request, error: null };
@@ -295,7 +354,7 @@ export async function getProfile() {
 }
 
 /**
- * Fetch pending requests for managers (with requester profile).
+ * Fetch pending requests for managers and accountants (with requester profile).
  * Includes both pending and clarification_requested.
  * @returns {Promise<{data: Array, error: Error|null}>}
  */
@@ -517,19 +576,19 @@ export async function getMyRequests() {
   return { data: data || [], error };
 }
 
+const payoutQueueSelect = `
+  *,
+  requester:profiles!requester_id(full_name)
+`;
+
 /**
- * Fetch approved requests ready for payout (cashier desk or admin override).
+ * Manager-approved requests waiting for accountant/admin to release to the cash desk.
  * @returns {Promise<{data: Array, error: Error|null}>}
  */
-export async function getApprovedRequests() {
+export async function getAwaitingDisbursementRequests() {
   const { data, error } = await supabase
     .from("requests")
-    .select(
-      `
-      *,
-      requester:profiles!requester_id(full_name)
-    `
-    )
+    .select(payoutQueueSelect)
     .eq("status", "approved")
     .order("created_at", { ascending: false });
 
@@ -537,11 +596,43 @@ export async function getApprovedRequests() {
 }
 
 /**
- * Look up an approved request by human-readable reference (e.g. PC-100042).
+ * Released for pickup: cashier desk queue (after accountant/admin disbursed).
+ * @returns {Promise<{data: Array, error: Error|null}>}
+ */
+export async function getReleasedForPayoutRequests() {
+  const { data, error } = await supabase
+    .from("requests")
+    .select(payoutQueueSelect)
+    .eq("status", "released")
+    .order("created_at", { ascending: false });
+
+  return { data: data || [], error };
+}
+
+/**
+ * Paid-out history (most recent first). For Disbursements history tab.
+ * @param {Object} [options]
+ * @param {number} [options.limit=500]
+ * @returns {Promise<{data: Array, error: Error|null}>}
+ */
+export async function getDisbursedRequestsRecent(options = {}) {
+  const limit = Math.min(Math.max(Number(options.limit) || 500, 1), 2000);
+  const { data, error } = await supabase
+    .from("requests")
+    .select(payoutQueueSelect)
+    .eq("status", "disbursed")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  return { data: data || [], error };
+}
+
+/**
+ * Look up a released (ready for cash) request by human-readable reference (e.g. PC-100042).
  * @param {string} code
  * @returns {Promise<{data: object|null, error: Error|null}>}
  */
-export async function getApprovedRequestByReferenceCode(code) {
+export async function getReleasedRequestByReferenceCode(code) {
   const normalized = String(code || "")
     .trim()
     .toUpperCase()
@@ -552,12 +643,7 @@ export async function getApprovedRequestByReferenceCode(code) {
 
   const { data, error } = await supabase
     .from("requests")
-    .select(
-      `
-      *,
-      requester:profiles!requester_id(full_name)
-    `
-    )
+    .select(payoutQueueSelect)
     .eq("reference_code", normalized)
     .maybeSingle();
 
@@ -565,10 +651,14 @@ export async function getApprovedRequestByReferenceCode(code) {
   if (!data) {
     return { data: null, error: new Error("No request with this reference") };
   }
-  if (data.status !== "approved") {
+  if (data.status !== "released") {
     return {
       data: null,
-      error: new Error("This request is not approved for payout")
+      error: new Error(
+        data.status === "approved"
+          ? "This request is approved but not yet released for pickup — finance must disburse first."
+          : "This reference is not ready for cash pickup at the desk."
+      )
     };
   }
   return { data, error: null };
@@ -612,7 +702,7 @@ export async function updateCashFloat(amount) {
 }
 
 /**
- * Admin: combined petty cash book — float top-ups and closed requests (disbursed / rejected).
+ * Admin: combined activity log — float top-ups and closed requests (disbursed / rejected).
  * Requires migrations: list_float_topups, list_admin_closed_requests, float_topup_log.
  * @returns {Promise<{data: Array<{kind: string, at: string, amountSigned: number, title: string, detail: string, meta: object}>, error: Error|null}>}
  */
@@ -627,7 +717,7 @@ export async function getAdminCashbookHistory() {
     return {
       data: [],
       error: new Error(
-        "Cash book history requires database migration 008 (list_float_topups, list_admin_closed_requests)."
+        "Activity log requires database migration 008 (list_float_topups, list_admin_closed_requests)."
       ),
     };
   }

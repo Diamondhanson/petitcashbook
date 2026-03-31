@@ -26,7 +26,7 @@ function formatDateTime(iso) {
 const TABS = [
   { id: "payout", label: "Pay out" },
   { id: "topup", label: "Top up" },
-  { id: "history", label: "Cash book" },
+  { id: "history", label: "Activity log" },
 ];
 
 function CashierView() {
@@ -56,7 +56,7 @@ function CashierView() {
   }, []);
 
   const loadRequests = useCallback(async () => {
-    const { data } = await pettyCashApi.getApprovedRequests?.().catch(() => ({ data: [] }));
+    const { data } = await pettyCashApi.getReleasedForPayoutRequests?.().catch(() => ({ data: [] }));
     setRequests(data ?? []);
   }, []);
 
@@ -91,10 +91,6 @@ function CashierView() {
     }
     setTopups(data ?? []);
   }, []);
-
-  const refreshAll = useCallback(async () => {
-    await Promise.all([loadBalance(), loadRequests(), loadHistory()]);
-  }, [loadBalance, loadRequests, loadHistory]);
 
   useEffect(() => {
     let mounted = true;
@@ -136,7 +132,7 @@ function CashierView() {
       return;
     }
     setLookupLoading(true);
-    const { data, error } = await pettyCashApi.getApprovedRequestByReferenceCode(code);
+    const { data, error } = await pettyCashApi.getReleasedRequestByReferenceCode(code);
     setLookupLoading(false);
     if (error) {
       setLookupError(error.message || "Lookup failed");
@@ -199,7 +195,7 @@ function CashierView() {
       <div>
         <h2 className="text-lg font-semibold text-brand-dark">Cash desk</h2>
         <p className="mt-1 text-accent">
-          Verify references, mark paid out, top up the float, or review the cash book.
+          Only requests released by finance appear here. Verify references, mark paid out, top up the float, or review the activity log.
         </p>
       </div>
 
@@ -281,7 +277,7 @@ function CashierView() {
           </section>
 
           <section>
-            <h3 className="mb-4 text-base font-medium text-brand-dark">Approved — ready to pay out</h3>
+            <h3 className="mb-4 text-base font-medium text-brand-dark">Released — ready to pay out</h3>
             <div className="mb-4">
               <label htmlFor="filter-ref" className="sr-only">
                 Filter by reference
@@ -299,7 +295,7 @@ function CashierView() {
               {filteredRequests.length === 0 ? (
                 <p className="px-8 py-12 text-center text-accent">
                   {requests.length === 0
-                    ? "No approved requests waiting for payout."
+                    ? "No released requests waiting for payout."
                     : "No rows match this filter."}
                 </p>
               ) : (
@@ -455,7 +451,7 @@ function CashierView() {
 
       {tab === "history" && (
         <section>
-          <h3 className="mb-4 text-base font-medium text-brand-dark">Petty cash book (history)</h3>
+          <h3 className="mb-4 text-base font-medium text-brand-dark">Activity log</h3>
           <div className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-md">
             {historyLoading ? (
               <p className="px-8 py-12 text-center text-accent">Loading history…</p>

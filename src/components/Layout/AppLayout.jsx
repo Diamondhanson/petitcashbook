@@ -15,7 +15,7 @@ function AppLayout() {
 
       <header className="sticky top-0 z-30 border-b border-navy-light bg-navy shadow-md pl-[200px]">
         <div className="flex items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-semibold text-white">Cash Book</h1>
+          <h1 className="text-lg font-semibold text-white">PETTY SYNC</h1>
           <div className="flex items-center gap-4">
             <span
               className="rounded-md bg-white/15 px-3 py-1 text-xs font-medium text-white"

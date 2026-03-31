@@ -1,6 +1,6 @@
-# Getting Started with Create React App
+# PETTY SYNC
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Petty cash management (requests, approvals, payouts in FCFA). Bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
 

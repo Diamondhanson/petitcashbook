@@ -1,4 +1,4 @@
--- Admin petty cash book: log float top-ups and RPCs to read history (disbursed/rejected requests + top-ups)
+-- PETTY SYNC: log float top-ups and RPCs to read activity history (disbursed/rejected requests + top-ups)
 
 -- 1. Append-only log for cash float top-ups (written by update_cash_float)
 CREATE TABLE IF NOT EXISTS public.float_topup_log (

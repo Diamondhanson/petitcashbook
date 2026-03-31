@@ -44,7 +44,7 @@ function ExportView() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Disbursements");
-    XLSX.writeFile(wb, `disbursements-${startDate || "all"}-${endDate || "all"}.xlsx`);
+    XLSX.writeFile(wb, `PETTY-SYNC-disbursements-${startDate || "all"}-${endDate || "all"}.xlsx`);
   };
 
   const exportPdf = async () => {
@@ -61,7 +61,7 @@ function ExportView() {
     const Doc = () => (
       <Document>
         <Page size="A4" style={styles.page}>
-          <Text style={styles.title}>Disbursements Report</Text>
+          <Text style={styles.title}>PETTY SYNC — Disbursements Report</Text>
           {data.map((r, i) => (
             <View key={i} style={styles.row}>
               <Text style={styles.cell}>{r.created_at?.slice(0, 10)}</Text>
@@ -77,7 +77,7 @@ function ExportView() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `disbursements-${startDate || "all"}-${endDate || "all"}.pdf`;
+    a.download = `PETTY-SYNC-disbursements-${startDate || "all"}-${endDate || "all"}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   };

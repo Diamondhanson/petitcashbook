@@ -47,8 +47,8 @@ function OverviewView() {
         { label: "Disbursed (Month)", value: formatAmount(disbursed), trend: null },
       ]);
 
-      const approved = await pettyCashApi.getApprovedRequests?.().catch(() => ({ data: [] })) ?? { data: [] };
-      const recent = ((approved && approved.data) ? approved.data : []).slice(0, 15).map((r) => ({
+      const released = await pettyCashApi.getReleasedForPayoutRequests?.().catch(() => ({ data: [] })) ?? { data: [] };
+      const recent = ((released && released.data) ? released.data : []).slice(0, 15).map((r) => ({
         id: r.id,
         description: r.purpose,
         amount: `-${formatAmount(r.amount)}`,
@@ -101,7 +101,10 @@ function OverviewView() {
       </section>
 
       <section>
-        <h2 className="mb-6 text-lg font-semibold text-brand-dark">Recent Activity</h2>
+        <h2 className="mb-2 text-lg font-semibold text-brand-dark">Awaiting cash pickup</h2>
+        <p className="mb-6 text-sm text-accent">
+          Requests released by finance and waiting for the cashier (not yet paid out).
+        </p>
         <div className="rounded-xl border border-slate-300 bg-white shadow-md">
           {transactions.length === 0 ? (
             <p className="px-8 py-12 text-center text-accent">No recent activity</p>

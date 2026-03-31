@@ -102,7 +102,7 @@ function FloatManagementView() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-brand-dark">Float Management</h2>
         <p className="mt-1 text-accent">
-          Manage the cash float and review the petty cash book (disbursements, rejections, top-ups).
+          Manage the cash float and review the PETTY SYNC activity log (disbursements, rejections, top-ups).
         </p>
       </div>
 
@@ -127,7 +127,7 @@ function FloatManagementView() {
               : "border-transparent text-accent hover:text-brand-dark"
           }`}
         >
-          Petty cash book
+          Activity log
         </button>
       </div>
 
